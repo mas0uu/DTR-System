@@ -30,7 +30,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    
+
+    Route::get('/dtr', fn () => Inertia::render('Dtr/Index'))->name('dtr.index');
+    Route::get('dtr/months', [DtrMonthController::class, 'index'])->name('dtr.months.index');
+    Route::post('dtr/months', [DtrMonthController::class, 'store'])->name('dtr.months.store');
+    Route::get('dtr/months/{month}', [DtrMonthController::class, 'show'])->name('dtr.months.show');
+    Route::post('dtr/rows', [DtrRowController::class, 'store'])->name('dtr.rows.store');
+    Route::patch('dtr/rows/{row}', [DtrRowController::class, 'update'])->name('dtr.rows.update');
+    Route::delete('dtr/rows/{row}', [DtrRowController::class, 'destroy'])->name('dtr.rows.destroy');
+
     // Food Distribution ERP Routes
     Route::resource('products', ProductController::class);
     Route::resource('categories', CategoryController::class);
@@ -38,6 +46,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::resource('orders', OrderController::class);
     Route::resource('purchase-orders', PurchaseOrderController::class);
+
+    // DTR
+    Route::resource('dtr-months', DtrMonthController::class);
+    Route::resource('dtr-rows', DtrRowController::class);
 });
 
 // Admin routes with role middleware

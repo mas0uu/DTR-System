@@ -152,16 +152,16 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     },
                     Menu: {
                         itemBg: '#ffffff',
-                        itemSelectedBg: '#f5f5f5',
+                        itemSelectedBg: '#ff0000',
                         itemSelectedColor: '#000000',
                         itemColor: '#666666',
-                        itemHoverBg: '#fafafa',
+                        itemHoverBg: '#00ff4c',
                         itemHoverColor: '#000000',
                     },
                 },
             }}
         >
-            <Layout style={{ minHeight: '100vh', background: '#fafafa' }}>
+            <Layout style={{ minHeight: '100vh', background: '#7D8491' }}>
                 <Sider 
                     trigger={null} 
                     collapsible 
@@ -174,8 +174,8 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         left: 0,
                         top: 0,
                         bottom: 0,
-                        borderRight: '1px solid #f0f0f0',
-                        background: '#ffffff',
+                        borderRight: '1px solid #7D8491',
+                        background: '#7D8491',
                     }}
                 >
                     <div style={{ 
@@ -196,6 +196,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         </div>
                     </div>
                     <Menu
+
                         mode="inline"
                         selectedKeys={[getActiveKey()]}
                         defaultOpenKeys={['products-group', 'sales-group', 'purchase-group', 'admin-group']}
@@ -203,13 +204,14 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         style={{ 
                             borderRight: 0,
                             marginTop: '8px',
+                            background: '#0059ff',
                         }}
                     />
                 </Sider>
-                <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s', background: '#fafafa' }}>
+                <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s', background: '#3F334D' }}>
                     <Header style={{ 
                         padding: '0 32px', 
-                        background: '#ffffff',
+                        background: '#574B60',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -224,7 +226,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                 fontSize: '16px',
                                 width: 40,
                                 height: 40,
-                                color: '#000000',
+                                color: '#D9DBF1',
                             }}
                         />
                         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
@@ -254,7 +256,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         minHeight: 'calc(100vh - 112px)',
                     }}>
                         <div style={{
-                            background: '#ffffff',
+                            background: '#574B60',
                             padding: '32px',
                             borderRadius: '8px',
                             border: '1px solid #f0f0f0',

@@ -24,7 +24,7 @@ export default function Welcome({
                 <img
                     id="background"
                     className="absolute -left-20 top-0 max-w-[877px]"
-                    src="https://laravel.com/assets/img/welcome/background.svg"
+                    src="https://scontent.fmnl8-5.fna.fbcdn.net/v/t39.30808-6/641312921_122192328248857239_5021241448178963021_n.jpg?stp=dst-jpg_p526x296_tt6&_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=qz_685VnOl8Q7kNvwFiHjCa&_nc_oc=Admx05rgSSKfcWxXgRMoYb47D3ZPCUkC30PUnyle7cFj4Qi3abeMV9aXkj-kv0nSaNE&_nc_zt=23&_nc_ht=scontent.fmnl8-5.fna&_nc_gid=sNS_jzgOHV3X5Qbw8mf0sw&oh=00_AfutQs8tMngmB10V2fMRbHjdJi4V4ik2i-A1tmdL2s2Nrw&oe=69A31CD8"
                 />
                 <div className="relative flex min-h-screen flex-col items-center justify-center selection:bg-[#FF2D20] selection:text-white">
                     <div className="relative w-full max-w-2xl px-6 lg:max-w-7xl">

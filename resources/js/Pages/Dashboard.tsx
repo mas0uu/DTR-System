@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { Card, Row, Col, Statistic } from 'antd';
+import { Layout, Card, Row, Col, Statistic } from 'antd';
 import {
     ShoppingCartOutlined,
     ShoppingOutlined,
@@ -7,9 +7,11 @@ import {
     WarningOutlined,
 } from '@ant-design/icons';
 
+const { Content } = Layout;
+
 export default function Dashboard() {
     return (
-        <>
+        <Layout style={{ minHeight: '100vh', background: '#574B60', color: '#ffffff'}} >
             <Head title="Dashboard" />
 
             <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>
@@ -72,6 +74,6 @@ export default function Dashboard() {
                     </Card>
                 </Col>
             </Row>
-        </>
+        </Layout>
     );
 }
