@@ -4,6 +4,9 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Alert, Card, Typography } from 'antd';
+
+const { Title, Paragraph } = Typography;
 
 export default function ForgotPassword({ status }: { status?: string }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -20,37 +23,34 @@ export default function ForgotPassword({ status }: { status?: string }) {
         <GuestLayout>
             <Head title="Forgot Password" />
 
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Forgot your password? No problem. Just let us know your email
-                address and we will email you a password reset link that will
-                allow you to choose a new one.
-            </div>
+            <Card className="mx-auto w-full max-w-md">
+                <Title level={4}>Reset your password</Title>
+                <Paragraph className="!text-slate-500">
+                    Enter your email and we will send a reset link.
+                </Paragraph>
 
-            {status && (
-                <div className="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
-                    {status}
-                </div>
-            )}
+                {status && <Alert className="mb-4" type="success" message={status} showIcon />}
 
-            <form onSubmit={submit}>
-                <TextInput
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={data.email}
-                    className="mt-1 block w-full"
-                    isFocused={true}
-                    onChange={(e) => setData('email', e.target.value)}
-                />
+                <form onSubmit={submit}>
+                    <TextInput
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={data.email}
+                        className="mt-1 block w-full"
+                        isFocused={true}
+                        onChange={(e) => setData('email', e.target.value)}
+                    />
 
-                <InputError message={errors.email} className="mt-2" />
+                    <InputError message={errors.email} className="mt-2" />
 
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Email Password Reset Link
-                    </PrimaryButton>
-                </div>
-            </form>
+                    <div className="mt-4 flex items-center justify-end">
+                        <PrimaryButton className="ms-4" disabled={processing}>
+                            Send Reset Link
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Card>
         </GuestLayout>
     );
 }

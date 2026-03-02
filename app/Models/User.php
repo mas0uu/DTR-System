@@ -2,16 +2,15 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +21,14 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'student_name',
+        'student_no',
+        'school',
+        'required_hours',
+        'company',
+        'department',
+        'supervisor_name',
+        'supervisor_position',
     ];
 
     /**
@@ -46,4 +53,13 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Get the user's DTR months.
+     */
+    public function dtrMonths()
+    {
+        return $this->hasMany(DtrMonth::class);
+    }
 }
+

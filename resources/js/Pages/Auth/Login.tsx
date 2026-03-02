@@ -1,4 +1,3 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -6,6 +5,9 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Alert, Card, Checkbox, Typography } from 'antd';
+
+const { Title, Paragraph } = Typography;
 
 export default function Login({
     status,
@@ -15,7 +17,7 @@ export default function Login({
     canResetPassword: boolean;
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
+        credential: '',
         password: '',
         remember: false as boolean,
     });
@@ -32,79 +34,94 @@ export default function Login({
         <GuestLayout>
             <Head title="Log in" />
 
-            {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
-
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        isFocused={true}
-                        onChange={(e) => setData('email', e.target.value)}
-                    />
-
-                    <InputError message={errors.email} className="mt-2" />
+            <Card className="mx-auto w-full max-w-md">
+                <div className="mb-6">
+                    <Title level={3} className="!mb-1 text-center">
+                        Welcome Back
+                    </Title>
+                    <Paragraph className="!mb-0 text-center !text-slate-500">
+                        Sign in to continue managing your internship time records.
+                    </Paragraph>
                 </div>
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
+                {status && (
+                    <Alert className="mb-4" type="success" message={status} showIcon />
+                )}
 
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
+                <form onSubmit={submit}>
+                    <div className="mb-4">
+                        <InputLabel htmlFor="credential" value="Student Number or Email" />
 
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4 block">
-                    <label className="flex items-center">
-                        <Checkbox
-                            name="remember"
-                            checked={data.remember}
-                            onChange={(e) =>
-                                setData(
-                                    'remember',
-                                    (e.target.checked || false) as false,
-                                )
-                            }
+                        <TextInput
+                            id="credential"
+                            type="text"
+                            name="credential"
+                            value={data.credential}
+                            onChange={(e) => setData('credential', e.target.value)}
+                            placeholder="e.g., 2022123456"
+                            className="mt-1 block w-full"
+                            autoFocus
                         />
-                        <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
-                            Remember me
-                        </span>
-                    </label>
-                </div>
 
-                <div className="mt-4 flex items-center justify-end">
-                    {canResetPassword && (
+                        <InputError message={errors.credential} className="mt-2" />
+                    </div>
+
+                    <div className="mb-4">
+                        <InputLabel htmlFor="password" value="Password" />
+
+                        <TextInput
+                            id="password"
+                            type="password"
+                            name="password"
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            placeholder="Enter your password"
+                            className="mt-1 block w-full"
+                        />
+
+                        <InputError message={errors.password} className="mt-2" />
+                    </div>
+
+                    <div className="mb-4 flex items-center">
+                        <label className="flex items-center">
+                            <Checkbox
+                                checked={data.remember}
+                                onChange={(e) => setData('remember', e.target.checked)}
+                            />
+                            <span className="ms-2 text-sm text-gray-600">
+                                Remember me
+                            </span>
+                        </label>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-6">
+                        {canResetPassword && (
+                            <Link
+                                href={route('password.request')}
+                                className="text-sm text-blue-600 hover:text-blue-800"
+                            >
+                                Forgot password?
+                            </Link>
+                        )}
+
+                        <PrimaryButton disabled={processing}>
+                            {processing ? 'Logging in...' : 'Login'}
+                        </PrimaryButton>
+                    </div>
+                </form>
+
+                <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-600">
+                        Don't have an account?{' '}
                         <Link
-                            href={route('password.request')}
-                            className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
+                            href={route('register')}
+                            className="text-blue-600 hover:text-blue-800 font-semibold"
                         >
-                            Forgot your password?
+                            Register here
                         </Link>
-                    )}
-
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Log in
-                    </PrimaryButton>
+                    </p>
                 </div>
-            </form>
+            </Card>
         </GuestLayout>
     );
 }

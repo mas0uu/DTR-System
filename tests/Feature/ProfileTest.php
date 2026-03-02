@@ -43,6 +43,41 @@ class ProfileTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
+    public function test_dtr_user_information_can_be_updated(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'name' => 'Test User',
+                'email' => $user->email,
+                'student_name' => 'Johnson Roque Jr',
+                'student_no' => '2026123456',
+                'school' => 'Sample University',
+                'required_hours' => 480,
+                'company' => 'Sample Company',
+                'department' => 'Engineering',
+                'supervisor_name' => 'Jane Supervisor',
+                'supervisor_position' => 'Team Lead',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/profile');
+
+        $user->refresh();
+
+        $this->assertSame('Johnson Roque Jr', $user->student_name);
+        $this->assertSame('2026123456', $user->student_no);
+        $this->assertSame('Sample University', $user->school);
+        $this->assertSame(480, $user->required_hours);
+        $this->assertSame('Sample Company', $user->company);
+        $this->assertSame('Engineering', $user->department);
+        $this->assertSame('Jane Supervisor', $user->supervisor_name);
+        $this->assertSame('Team Lead', $user->supervisor_position);
+    }
+
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
     {
         $user = User::factory()->create();

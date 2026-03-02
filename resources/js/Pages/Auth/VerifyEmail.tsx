@@ -2,6 +2,9 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { Alert, Card, Typography } from 'antd';
+
+const { Title, Paragraph } = Typography;
 
 export default function VerifyEmail({ status }: { status?: string }) {
     const { post, processing } = useForm({});
@@ -16,36 +19,38 @@ export default function VerifyEmail({ status }: { status?: string }) {
         <GuestLayout>
             <Head title="Email Verification" />
 
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Thanks for signing up! Before getting started, could you verify
-                your email address by clicking on the link we just emailed to
-                you? If you didn't receive the email, we will gladly send you
-                another.
-            </div>
+            <Card className="mx-auto w-full max-w-md">
+                <Title level={4}>Verify your email</Title>
+                <Paragraph className="!text-slate-500">
+                    Please confirm your email address by clicking the link we sent.
+                </Paragraph>
 
-            {status === 'verification-link-sent' && (
-                <div className="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
-            )}
+                {status === 'verification-link-sent' && (
+                    <Alert
+                        className="mb-4"
+                        type="success"
+                        showIcon
+                        message="A new verification link has been sent to your email."
+                    />
+                )}
 
-            <form onSubmit={submit}>
-                <div className="mt-4 flex items-center justify-between">
-                    <PrimaryButton disabled={processing}>
-                        Resend Verification Email
-                    </PrimaryButton>
+                <form onSubmit={submit}>
+                    <div className="mt-4 flex items-center justify-between">
+                        <PrimaryButton disabled={processing}>
+                            Resend Verification Email
+                        </PrimaryButton>
 
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
-                    >
-                        Log Out
-                    </Link>
-                </div>
-            </form>
+                        <Link
+                            href={route('logout')}
+                            method="post"
+                            as="button"
+                            className="rounded-md text-sm text-slate-600 underline hover:text-slate-900"
+                        >
+                            Log Out
+                        </Link>
+                    </div>
+                </form>
+            </Card>
         </GuestLayout>
     );
 }

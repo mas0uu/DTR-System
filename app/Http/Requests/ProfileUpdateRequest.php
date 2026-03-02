@@ -17,6 +17,13 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'student_name' => ['nullable', 'string', 'max:255'],
+            'student_no' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique(User::class)->ignore($this->user()->id),
+            ],
             'email' => [
                 'required',
                 'string',
@@ -25,6 +32,12 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'school' => ['nullable', 'string', 'max:255'],
+            'required_hours' => ['nullable', 'integer', 'min:1'],
+            'company' => ['nullable', 'string', 'max:255'],
+            'department' => ['nullable', 'string', 'max:255'],
+            'supervisor_name' => ['nullable', 'string', 'max:255'],
+            'supervisor_position' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -5,18 +5,24 @@ import 'antd/dist/reset.css';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import type { ReactNode } from 'react';
 import ModernLayout from './Layouts/ModernLayout';
 
+type InertiaPageModule = {
+    default: {
+        layout?: (page: ReactNode) => ReactNode;
+    };
+};
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: async (name) => {
-        const page = await resolvePageComponent(
+        const page = (await resolvePageComponent(
             `./Pages/${name}.tsx`,
             import.meta.glob('./Pages/**/*.tsx'),
-        );
+        )) as InertiaPageModule;
         
         // Apply layout to all authenticated pages except auth pages
         if (!name.startsWith('Auth/') && !name.startsWith('Welcome')) {

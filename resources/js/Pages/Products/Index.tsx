@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Button, Table, Tag, Space, Popconfirm, Input } from 'antd';
+import { Button, Table, Tag, Space, Popconfirm, Input, Card, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -32,6 +32,8 @@ interface ProductsPageProps {
     };
 }
 
+const { Title, Paragraph } = Typography;
+
 export default function Index({ products }: ProductsPageProps) {
     const handleDelete = (id: number) => {
         router.delete(route('products.destroy', id));
@@ -48,12 +50,12 @@ export default function Index({ products }: ProductsPageProps) {
             title: 'Product Name',
             dataIndex: 'name',
             key: 'name',
-            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+            filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
                 <div style={{ padding: 8 }}>
                     <Input
                         placeholder="Search product"
                         value={selectedKeys[0]}
-                        onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+                        onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
                         onPressEnter={() => confirm()}
                         style={{ width: 188, marginBottom: 8, display: 'block' }}
                     />
@@ -66,10 +68,15 @@ export default function Index({ products }: ProductsPageProps) {
             dataIndex: ['category', 'name'],
             key: 'category',
             render: (text: string, record: Product) => (
-                <Tag color={
-                    record.category.type === 'frozen_foods' ? 'blue' :
-                    record.category.type === 'horeca' ? 'green' : 'orange'
-                }>
+                <Tag
+                    color={
+                        record.category.type === 'frozen_foods'
+                            ? 'blue'
+                            : record.category.type === 'horeca'
+                              ? 'green'
+                              : 'orange'
+                    }
+                >
                     {text}
                 </Tag>
             ),
@@ -78,14 +85,14 @@ export default function Index({ products }: ProductsPageProps) {
             title: 'Cost Price',
             dataIndex: 'cost_price',
             key: 'cost_price',
-            render: (price: number) => `₱${Number(price).toFixed(2)}`,
+            render: (price: number) => `PHP ${Number(price).toFixed(2)}`,
             align: 'right',
         },
         {
             title: 'Selling Price',
             dataIndex: 'selling_price',
             key: 'selling_price',
-            render: (price: number) => `₱${Number(price).toFixed(2)}`,
+            render: (price: number) => `PHP ${Number(price).toFixed(2)}`,
             align: 'right',
         },
         {
@@ -142,29 +149,37 @@ export default function Index({ products }: ProductsPageProps) {
         <>
             <Head title="Products" />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
-                    Product Management
-                </h1>
-                <Link href={route('products.create')}>
-                    <Button type="primary" icon={<PlusOutlined />} size="large">
-                        Add Product
-                    </Button>
-                </Link>
-            </div>
+            <Card>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                        <Title level={3} style={{ margin: 0 }}>
+                            Product Management
+                        </Title>
+                        <Paragraph style={{ margin: 0, color: '#64748b' }}>
+                            Manage catalog, pricing, and stock levels.
+                        </Paragraph>
+                    </div>
+                    <Link href={route('products.create')}>
+                        <Button type="primary" icon={<PlusOutlined />} size="large">
+                            Add Product
+                        </Button>
+                    </Link>
+                </div>
 
-            <Table
-                columns={columns}
-                dataSource={products.data}
-                rowKey="id"
-                pagination={{
-                    current: products.current_page,
-                    pageSize: products.per_page,
-                    total: products.total,
-                    showSizeChanger: true,
-                    showTotal: (total) => `Total ${total} products`,
-                }}
-            />
+                <Table
+                    columns={columns}
+                    dataSource={products.data}
+                    rowKey="id"
+                    scroll={{ x: 960 }}
+                    pagination={{
+                        current: products.current_page,
+                        pageSize: products.per_page,
+                        total: products.total,
+                        showSizeChanger: true,
+                        showTotal: (total) => `Total ${total} products`,
+                    }}
+                />
+            </Card>
         </>
     );
 }

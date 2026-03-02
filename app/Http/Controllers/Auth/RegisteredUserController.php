@@ -31,14 +31,34 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            // User identification
+            'student_name' => 'required|string|max:255',
+            'student_no' => 'required|string|unique:'.User::class,
+            'email' => 'required|string|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            
+            // Academic information
+            'school' => 'required|string|max:255',
+            'required_hours' => 'required|integer|min:1',
+            
+            // Internship information
+            'company' => 'required|string|max:255',
+            'department' => 'required|string|max:255',
+            'supervisor_name' => 'required|string|max:255',
+            'supervisor_position' => 'required|string|max:255',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
+            'name' => $request->student_name,
             'email' => $request->email,
+            'student_name' => $request->student_name,
+            'student_no' => $request->student_no,
+            'school' => $request->school,
+            'required_hours' => $request->required_hours,
+            'company' => $request->company,
+            'department' => $request->department,
+            'supervisor_name' => $request->supervisor_name,
+            'supervisor_position' => $request->supervisor_position,
             'password' => Hash::make($request->password),
         ]);
 
@@ -46,6 +66,6 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('verification.notice'));
     }
 }

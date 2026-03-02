@@ -6,6 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class DtrMonth extends Model
 {
+    protected $fillable = [
+        'user_id',
+        'month',
+        'year',
+        'is_fulfilled',
+    ];
+
+    protected $casts = [
+        'is_fulfilled' => 'boolean',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -14,5 +25,23 @@ class DtrMonth extends Model
     public function rows()
     {
         return $this->hasMany(DtrRow::class);
+    }
+
+    /**
+     * Get total hours logged in this month
+     */
+    public function getTotalHoursAttribute()
+    {
+        return $this->rows()
+            ->where('status', 'finished')
+            ->sum('total_minutes') / 60;
+    }
+
+    /**
+     * Get finished rows count
+     */
+    public function getFinishedRowsCountAttribute()
+    {
+        return $this->rows()->where('status', 'finished')->count();
     }
 }
