@@ -87,7 +87,19 @@ class DtrMonthController extends Controller
         $totalHours = $this->calculateTotalHours($month);
         $user = $request->user();
         $requiredHours = $user->required_hours;
-        $remainingHours = max(0, $requiredHours - $totalHours);
+        $loggedHoursUntilSelectedMonth = DtrRow::whereHas('dtrMonth', function ($query) use ($user, $month) {
+            $query->where('user_id', $user->id)
+                ->where(function ($dateQuery) use ($month) {
+                    $dateQuery->where('year', '<', $month->year)
+                        ->orWhere(function ($sameYearQuery) use ($month) {
+                            $sameYearQuery->where('year', $month->year)
+                                ->where('month', '<=', $month->month);
+                        });
+                });
+        })
+            ->where('status', 'finished')
+            ->sum('total_minutes') / 60;
+        $remainingHours = max(0, $requiredHours - $loggedHoursUntilSelectedMonth);
 
         return Inertia::render('Dtr/Show', [
             'month' => [

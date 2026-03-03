@@ -17,7 +17,7 @@ type InertiaPageModule = {
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => `${title} DTR System`,
     resolve: async (name) => {
         const page = (await resolvePageComponent(
             `./Pages/${name}.tsx`,

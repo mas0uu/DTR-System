@@ -44,32 +44,31 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                 algorithm: theme.defaultAlgorithm,
                 token: {
                     colorPrimary: '#2563eb',
-                    borderRadius: 10,
+                    borderRadius: 8,
                     fontSize: 14,
+                    fontFamily: 'Tahoma, Segoe UI, Verdana, sans-serif',
                 },
                 components: {
                     Layout: {
-                        colorBgHeader: '#ffffff',
-                        colorBgBody: '#f8fafc',
+                        colorBgHeader: '#eef5ff',
+                        colorBgBody: 'transparent',
                     },
                     Menu: {
-                        itemBg: '#ffffff',
-                        itemSelectedBg: '#dbeafe',
-                        itemSelectedColor: '#1d4ed8',
-                        itemColor: '#666666',
-                        itemHoverBg: '#eff6ff',
-                        itemHoverColor: '#000000',
+                        itemBg: '#f7fbff',
+                        itemSelectedBg: '#dce9ff',
+                        itemSelectedColor: '#1f4f9e',
+                        itemColor: '#355a8c',
+                        itemHoverBg: '#eaf2ff',
+                        itemHoverColor: '#1f4f9e',
                     },
                 },
             }}
         >
-            <Layout style={{ minHeight: '100vh' }}>
-                <Header style={{ 
+            <Layout className="app-shell" style={{ minHeight: '100vh' }}>
+                <Header className="liquid-header" style={{ 
                     padding: '0 16px', 
-                    background: '#ffffff',
-                    borderBottom: '1px solid #e2e8f0',
                     height: '72px',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                    boxShadow: '0 10px 36px rgba(15, 23, 42, 0.06)',
                     display: 'flex',
                     justifyContent: 'center',
                 }}>
@@ -86,12 +85,11 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         <Link href={route('dtr.index')}>
                             <Button
                                 type="text"
+                                className="liquid-pill"
                                 icon={<FileTextOutlined style={{ fontSize: '18px' }} />}
                                 style={{
                                     height: '42px',
                                     borderRadius: '10px',
-                                    border: '1px solid #dbeafe',
-                                    background: '#eff6ff',
                                     color: '#1d4ed8',
                                     fontSize: '18px',
                                     fontWeight: 700,
@@ -110,7 +108,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                         icon={<UserOutlined />}
                                         style={{ background: '#1d4ed8' }}
                                     />
-                                    <span style={{ fontSize: '14px', fontWeight: 500, color: '#0f172a' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 500, color: '#1f365d' }}>
                                         {user.name}
                                     </span>
                                 </Space>
@@ -126,13 +124,11 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     justifyContent: 'center',
                 }}>
                     <div
+                        className="glass-panel"
                         style={{
                             width: '100%',
                             maxWidth: '920px',
-                            background: '#ffffff',
                             padding: '28px',
-                            borderRadius: '14px',
-                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
                         }}
                     >
                         {children}

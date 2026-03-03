@@ -65,11 +65,16 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
     const [editingRow, setEditingRow] = useState<DtrRow | null>(null);
     const [form] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
+    const [selectedPrintDays, setSelectedPrintDays] = useState<number[]>([]);
     const breakOptions = Array.from({ length: 25 }, (_, i) => i * 5).map((value) => ({
         label: value === 0 ? 'No Break (0 mins)' : `${value} mins`,
         value,
     }));
     const monthStart = dayjs(`${month.year}-${String(month.month).padStart(2, '0')}-01`);
+    const daysWithRecords = Array.from(new Set(initialRows.map((row) => dayjs(row.date).date()))).sort((a, b) => a - b);
+    const printableRows = initialRows.filter((row) => selectedPrintDays.includes(dayjs(row.date).date()));
+    const printableTotalHours = printableRows.reduce((sum, row) => sum + row.total_hours, 0);
+    const printableRemainingHours = Math.max(0, required_hours - printableTotalHours);
 
     const formatDisplayTime = (time: string | null) => {
         if (!time) return '-';
@@ -83,6 +88,10 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
             setTimeout(() => window.print(), 300);
         }
     }, []);
+
+    useEffect(() => {
+        setSelectedPrintDays(daysWithRecords);
+    }, [initialRows]);
 
     const handleAddRow = () => {
         setEditingRow(null);
@@ -166,6 +175,10 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
     };
 
     const handlePrint = () => {
+        if (selectedPrintDays.length === 0) {
+            message.warning('Select at least one day to print.');
+            return;
+        }
         window.print();
     };
 
@@ -403,12 +416,26 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                                 Back
                             </Button>
                         </Link>
-                        <Button
-                            icon={<PrinterOutlined />}
-                            onClick={handlePrint}
-                        >
-                            Print DTR
-                        </Button>
+                        <Space>
+                            <Select
+                                mode="multiple"
+                                value={selectedPrintDays}
+                                onChange={setSelectedPrintDays}
+                                placeholder="Select days to print"
+                                style={{ minWidth: 280 }}
+                                maxTagCount="responsive"
+                                options={daysWithRecords.map((day) => ({
+                                    label: `${day}`,
+                                    value: day,
+                                }))}
+                            />
+                            <Button
+                                icon={<PrinterOutlined />}
+                                onClick={handlePrint}
+                            >
+                                Print DTR
+                            </Button>
+                        </Space>
                     </div>
 
                     {/* Month Card */}
@@ -455,7 +482,7 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                         <div className="mb-6">
                             <p className="mb-2">Progress: {progressPercentage.toFixed(1)}%</p>
                             <Progress
-                                percent={Math.min(100, progressPercentage)}
+                                percent={Math.min(100, Number(progressPercentage.toFixed(10)))}
                                 strokeColor={isMonthComplete ? '#52c41a' : '#1890ff'}
                             />
                         </div>
@@ -636,7 +663,7 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                             </tr>
                         </thead>
                         <tbody>
-                            {initialRows.map((row, index) => (
+                            {printableRows.map((row, index) => (
                                 <tr key={row.id}>
                                     <td>{index + 1}</td>
                                     <td>{row.day}</td>
@@ -653,9 +680,9 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                     </table>
 
                     <div className="print-summary">
-                        <div><strong>Total Hours Logged:</strong> {total_hours.toFixed(2)}</div>
+                        <div><strong>Total Hours Logged:</strong> {printableTotalHours.toFixed(2)}</div>
                         <div><strong>Required Hours:</strong> {required_hours}</div>
-                        <div><strong>Remaining Hours:</strong> {Math.max(0, remaining_hours).toFixed(2)}</div>
+                        <div><strong>Remaining Hours:</strong> {printableRemainingHours.toFixed(2)}</div>
                     </div>
 
                     <div className="print-sign">

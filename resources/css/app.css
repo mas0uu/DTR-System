@@ -1,3 +1,180 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    --xp-font: Tahoma, "Segoe UI", Verdana, sans-serif;
+    --xp-bg: #dce9fb;
+    --xp-panel: #f3f7ff;
+    --xp-panel-soft: #e8f0ff;
+    --xp-line: #9cb6dd;
+    --xp-text: #1f365d;
+    --xp-muted: #56719a;
+    --xp-primary: #2f6fd6;
+    --xp-primary-dark: #2556a5;
+    --xp-shadow: rgba(88, 116, 168, 0.22);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+    min-height: 100%;
+}
+
+html {
+    background: #d7e7ff;
+}
+
+body {
+    margin: 0;
+    font-family: var(--xp-font);
+    color: var(--xp-text);
+    background: linear-gradient(180deg, #eaf3ff 0%, #dbe9ff 55%, #d2e3ff 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+}
+
+.brand-title {
+    font-family: var(--xp-font);
+    letter-spacing: -0.01em;
+}
+
+.app-shell {
+    position: relative;
+}
+
+.glass-panel {
+    background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%);
+    border: 1px solid var(--xp-line);
+    border-radius: 12px;
+    box-shadow:
+        inset 0 1px 0 #ffffff,
+        0 8px 18px var(--xp-shadow);
+}
+
+.liquid-header {
+    background: linear-gradient(180deg, #f6faff 0%, #e8f0ff 100%);
+    border-bottom: 1px solid #b8cbea !important;
+    backdrop-filter: none !important;
+}
+
+.liquid-pill {
+    border: 1px solid #7ea0d6 !important;
+    border-radius: 8px !important;
+    background: linear-gradient(180deg, #fafdff 0%, #dfeeff 100%) !important;
+    color: #1f4f9e !important;
+    box-shadow:
+        inset 0 1px 0 #ffffff,
+        0 2px 0 rgba(139, 168, 216, 0.9) !important;
+}
+
+.liquid-pill:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #d6e7ff 100%) !important;
+}
+
+.app-shell .ant-card,
+.app-shell .ant-modal-content,
+.app-shell .ant-dropdown .ant-dropdown-menu,
+.app-shell .ant-input,
+.app-shell .ant-input-affix-wrapper,
+.app-shell .ant-select-selector,
+.app-shell .ant-picker,
+.app-shell .ant-table,
+.app-shell .ant-table-container {
+    background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%) !important;
+    color: var(--xp-text) !important;
+    border: 1px solid var(--xp-line) !important;
+    border-radius: 10px !important;
+    box-shadow: inset 0 1px 0 #ffffff, 0 4px 12px rgba(121, 148, 192, 0.2) !important;
+}
+
+.app-shell .ant-card-head,
+.app-shell .ant-tabs-nav,
+.app-shell .ant-table-thead > tr > th {
+    background: linear-gradient(180deg, #eef5ff 0%, #e3edff 100%) !important;
+    color: var(--xp-text) !important;
+    border-bottom: 1px solid #b5caea !important;
+}
+
+.app-shell .ant-card-head-title,
+.app-shell .ant-typography,
+.app-shell .ant-statistic-title,
+.app-shell .ant-statistic-content,
+.app-shell .ant-list-item-meta-title,
+.app-shell .ant-list-item-meta-description,
+.app-shell .ant-empty-description,
+.app-shell .ant-tabs-tab-btn,
+.app-shell .ant-table-thead > tr > th,
+.app-shell .ant-table-tbody > tr > td,
+.app-shell .ant-form-item-label > label,
+.app-shell .ant-modal-title {
+    font-family: var(--xp-font) !important;
+    color: var(--xp-text) !important;
+}
+
+.app-shell .ant-tabs-ink-bar {
+    background: var(--xp-primary) !important;
+    height: 3px !important;
+}
+
+.app-shell .ant-btn {
+    border: 1px solid #7f9ed1 !important;
+    border-radius: 6px !important;
+    font-family: var(--xp-font) !important;
+    font-size: 13px !important;
+    height: auto !important;
+    line-height: 1.3 !important;
+    padding: 8px 14px !important;
+    box-shadow: inset 0 1px 0 #ffffff, 0 2px 0 rgba(139, 168, 216, 0.9) !important;
+}
+
+.app-shell .ant-btn:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 1px 0 #d2e4ff, 0 1px 0 rgba(139, 168, 216, 0.9) !important;
+}
+
+.app-shell .ant-btn-primary {
+    background: linear-gradient(180deg, #4f89e6 0%, var(--xp-primary) 100%) !important;
+    color: #fff !important;
+    border-color: var(--xp-primary-dark) !important;
+}
+
+.app-shell .ant-btn-default {
+    background: linear-gradient(180deg, #ffffff 0%, #dceaff 100%) !important;
+    color: var(--xp-text) !important;
+}
+
+.app-shell .ant-tag {
+    border-radius: 6px !important;
+    border: 1px solid #8cb089 !important;
+    font-family: var(--xp-font) !important;
+    font-size: 12px !important;
+    padding: 2px 8px !important;
+    background: #e9f9e6 !important;
+    color: #2b6b2b !important;
+}
+
+.app-shell .ant-input,
+.app-shell .ant-select-selection-item,
+.app-shell .ant-picker-input > input,
+.app-shell .ant-dropdown-menu-title-content,
+.app-shell .ant-tabs-tab-btn,
+.app-shell .ant-list-item-meta-title,
+.app-shell .ant-list-item-meta-description {
+    font-family: var(--xp-font) !important;
+}
+
+.app-shell .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #d1def1 !important;
+}
+
+.app-shell .ant-input::placeholder,
+.app-shell .ant-select-selection-placeholder {
+    color: var(--xp-muted) !important;
+}

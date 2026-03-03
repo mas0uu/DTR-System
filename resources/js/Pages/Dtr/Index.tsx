@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
-import { Card, List, Button, Statistic, Row, Col, Empty, Tabs, Tag, Typography, Modal, Form, Select, InputNumber, Popconfirm, Tooltip, message } from 'antd';
+import { Card, List, Button, Statistic, Row, Col, Empty, Tabs, Progress, Tag, Typography, Modal, Form, Select, InputNumber, Popconfirm, Tooltip, message } from 'antd';
 import { ArrowRightOutlined, DeleteOutlined, EditOutlined, PlusOutlined, PrinterOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import axios from 'axios';
@@ -241,7 +241,7 @@ export default function DtrIndex({
                                     >
                                         <List.Item.Meta
                                             title={month.monthName}
-                                            description={`${month.total_hours.toFixed(2)} / ${user.required_hours} hours ( days recorded: ${month.finished_rows} )`}
+                                            description={`${month.total_hours.toFixed(2)} hours ( days recorded: ${month.finished_rows} )`}
                                         />
                                         {month.is_fulfilled && (
                                             <Tag color="success">Fulfilled</Tag>
@@ -264,6 +264,26 @@ export default function DtrIndex({
             ),
         },
     ];
+
+    
+    const percent = user.required_hours
+    ? Math.min(100, (totalLoggedHours / user.required_hours) * 100)
+    : 0;
+    return (
+    <>
+        <Tabs
+        items={tabItems}
+        tabBarExtraContent={
+            <div style={{ width: 260, paddingLeft: 12 }}>
+            <div style={{ fontSize: 12, marginBottom: -10 }}>
+                {totalLoggedHours.toFixed(2)} / {Number(user.required_hours).toFixed(2)} hrs
+            </div>
+            <Progress percent={Number(percent.toFixed(1))} size="small" />
+            </div>
+        }
+        />
+    </>
+    );
 
     return (
         <>

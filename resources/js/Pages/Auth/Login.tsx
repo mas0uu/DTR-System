@@ -34,12 +34,20 @@ export default function Login({
         <GuestLayout>
             <Head title="Log in" />
 
-            <Card className="mx-auto w-full max-w-md">
+            <Card
+                className="mx-auto w-full max-w-md"
+                style={{
+                    borderRadius: 16,
+                    borderColor: '#dbe4f5',
+                    boxShadow: '0 22px 56px rgba(37, 99, 235, 0.1)',
+                    background: 'rgba(255,255,255,0.94)',
+                }}
+            >
                 <div className="mb-6">
-                    <Title level={3} className="!mb-1 text-center">
+                    <Title level={3} className="brand-title !mb-1 text-center !text-slate-900">
                         Welcome Back
                     </Title>
-                    <Paragraph className="!mb-0 text-center !text-slate-500">
+                    <Paragraph className="!mb-0 text-center !text-slate-600">
                         Sign in to continue managing your internship time records.
                     </Paragraph>
                 </div>
@@ -88,7 +96,7 @@ export default function Login({
                                 checked={data.remember}
                                 onChange={(e) => setData('remember', e.target.checked)}
                             />
-                            <span className="ms-2 text-sm text-gray-600">
+                            <span className="ms-2 text-sm text-slate-600">
                                 Remember me
                             </span>
                         </label>
@@ -96,10 +104,7 @@ export default function Login({
 
                     <div className="flex items-center justify-between mt-6">
                         {canResetPassword && (
-                            <Link
-                                href={route('password.request')}
-                                className="text-sm text-blue-600 hover:text-blue-800"
-                            >
+                            <Link href={route('password.request')} className="text-sm font-semibold text-blue-700 hover:text-blue-900">
                                 Forgot password?
                             </Link>
                         )}
@@ -111,11 +116,11 @@ export default function Login({
                 </form>
 
                 <div className="mt-4 text-center">
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-600">
                         Don't have an account?{' '}
                         <Link
                             href={route('register')}
-                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                            className="font-semibold text-blue-700 hover:text-blue-900"
                         >
                             Register here
                         </Link>
