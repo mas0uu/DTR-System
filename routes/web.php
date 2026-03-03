@@ -37,6 +37,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('dtr/months/{month}', [DtrMonthController::class, 'destroy'])->name('dtr.months.destroy');
     Route::post('dtr/rows', [DtrRowController::class, 'store'])->name('dtr.rows.store');
     Route::patch('dtr/rows/{row}', [DtrRowController::class, 'update'])->name('dtr.rows.update');
+    Route::patch('dtr/rows/{row}/clock-in', [DtrRowController::class, 'clockIn'])->name('dtr.rows.clock_in');
+    Route::patch('dtr/rows/{row}/clock-out', [DtrRowController::class, 'clockOut'])->name('dtr.rows.clock_out');
+    Route::patch('dtr/rows/{row}/break/start', [DtrRowController::class, 'startBreak'])->name('dtr.rows.break_start');
+    Route::patch('dtr/rows/{row}/break/finish', [DtrRowController::class, 'finishBreak'])->name('dtr.rows.break_finish');
+    Route::patch('dtr/rows/{row}/leave', [DtrRowController::class, 'markLeave'])->name('dtr.rows.leave');
     Route::delete('dtr/rows/{row}', [DtrRowController::class, 'destroy'])->name('dtr.rows.destroy');
 });
 

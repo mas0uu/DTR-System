@@ -11,6 +11,11 @@ export interface User {
     department?: string | null;
     supervisor_name?: string | null;
     supervisor_position?: string | null;
+    employee_type?: 'intern' | 'regular' | null;
+    starting_date?: string | null;
+    working_days?: number[] | null;
+    work_time_in?: string | null;
+    work_time_out?: string | null;
 }
 
 export type PageProps<

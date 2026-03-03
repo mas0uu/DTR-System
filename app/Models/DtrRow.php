@@ -14,12 +14,18 @@ class DtrRow extends Model
         'time_out',
         'total_minutes',
         'break_minutes',
+        'late_minutes',
+        'on_break',
+        'break_started_at',
+        'break_target_minutes',
         'status',
         'remarks',
     ];
 
     protected $casts = [
         'date' => 'date',
+        'on_break' => 'boolean',
+        'break_started_at' => 'datetime',
     ];
 
     public function dtrMonth()

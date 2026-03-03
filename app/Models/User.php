@@ -29,6 +29,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'department',
         'supervisor_name',
         'supervisor_position',
+        'employee_type',
+        'starting_date',
+        'working_days',
+        'work_time_in',
+        'work_time_out',
     ];
 
     /**
@@ -51,6 +56,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'starting_date' => 'date',
+            'working_days' => 'array',
         ];
     }
 
@@ -62,4 +69,3 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(DtrMonth::class);
     }
 }
-

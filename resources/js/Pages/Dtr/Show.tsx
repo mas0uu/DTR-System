@@ -1,34 +1,29 @@
-﻿import { Head, Link, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-    Card,
-    Table,
+    Alert,
     Button,
-    Modal,
+    Card,
+    Col,
+    Empty,
     Form,
     Input,
-    Select,
-    DatePicker,
-    TimePicker,
-    Statistic,
-    Row,
-    Col,
-    Space,
-    Empty,
-    message,
+    Modal,
     Progress,
-    Alert,
+    Row,
+    Select,
+    Space,
+    Statistic,
+    Table,
+    TimePicker,
+    message,
+    notification,
 } from 'antd';
-import {
-    PlusOutlined,
-    DeleteOutlined,
-    EditOutlined,
-    PrinterOutlined,
-    ArrowLeftOutlined,
-    CheckCircleOutlined,
-} from '@ant-design/icons';
+import { ArrowLeftOutlined, EditOutlined, PrinterOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
+
+type RowStatus = 'draft' | 'in_progress' | 'finished' | 'leave' | 'missed';
 
 interface DtrRow {
     id: number;
@@ -39,8 +34,13 @@ interface DtrRow {
     total_hours: number;
     total_minutes: number;
     break_minutes: number;
-    status: 'draft' | 'finished';
+    late_minutes: number;
+    on_break: boolean;
+    break_target_minutes: number | null;
+    break_started_at: string | null;
+    status: RowStatus;
     remarks: string | null;
+    can_edit: boolean;
 }
 
 interface DtrMonth {
@@ -57,30 +57,78 @@ interface Props {
     total_hours: number;
     required_hours: number;
     remaining_hours: number;
+    today_date: string;
+    shift_start: string;
+    grace_minutes: number;
     user: any;
 }
 
-export default function DtrShow({ month, rows: initialRows, total_hours, required_hours, remaining_hours, user }: Props) {
+const BREAK_OPTIONS = [5, 10, 15, 30, 45, 60].map((value) => ({ label: `${value} mins`, value }));
+
+export default function DtrShow({
+    month,
+    rows: initialRows,
+    total_hours,
+    required_hours,
+    remaining_hours,
+    today_date,
+    shift_start,
+    grace_minutes,
+    user,
+}: Props) {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingRow, setEditingRow] = useState<DtrRow | null>(null);
-    const [form] = Form.useForm();
     const [submitting, setSubmitting] = useState(false);
+    const [breakChoice, setBreakChoice] = useState<number>(15);
+    const [breakCountdownSec, setBreakCountdownSec] = useState<number | null>(null);
     const [selectedPrintDays, setSelectedPrintDays] = useState<number[]>([]);
-    const breakOptions = Array.from({ length: 25 }, (_, i) => i * 5).map((value) => ({
-        label: value === 0 ? 'No Break (0 mins)' : `${value} mins`,
-        value,
-    }));
-    const monthStart = dayjs(`${month.year}-${String(month.month).padStart(2, '0')}-01`);
-    const daysWithRecords = Array.from(new Set(initialRows.map((row) => dayjs(row.date).date()))).sort((a, b) => a - b);
+    const [form] = Form.useForm();
+
+    const todayRow = useMemo(
+        () => initialRows.find((row) => row.date === today_date) ?? null,
+        [initialRows, today_date]
+    );
+
+    const daysWithRecords = useMemo(
+        () => Array.from(new Set(initialRows.map((row) => dayjs(row.date).date()))).sort((a, b) => a - b),
+        [initialRows]
+    );
+
     const printableRows = initialRows.filter((row) => selectedPrintDays.includes(dayjs(row.date).date()));
     const printableTotalHours = printableRows.reduce((sum, row) => sum + row.total_hours, 0);
     const printableRemainingHours = Math.max(0, required_hours - printableTotalHours);
 
-    const formatDisplayTime = (time: string | null) => {
-        if (!time) return '-';
-        const parsed = dayjs(time, ['HH:mm:ss', 'HH:mm', 'h:mm A'], true);
-        return parsed.isValid() ? parsed.format('h:mm A') : time;
-    };
+    const progressPercentage = required_hours > 0 ? (total_hours / required_hours) * 100 : 0;
+
+    useEffect(() => {
+        setSelectedPrintDays(daysWithRecords);
+    }, [daysWithRecords]);
+
+    useEffect(() => {
+        if (!todayRow?.on_break || !todayRow.break_started_at || !todayRow.break_target_minutes) {
+            setBreakCountdownSec(null);
+            return;
+        }
+
+        const startedAt = dayjs(todayRow.break_started_at);
+        const targetEnd = startedAt.add(todayRow.break_target_minutes, 'minute');
+
+        const update = () => {
+            const sec = targetEnd.diff(dayjs(), 'second');
+            setBreakCountdownSec(sec);
+            if (sec <= 0) {
+                notification.warning({
+                    message: 'Break timer ended',
+                    description: 'Please press "Finish Break" to stop the timer.',
+                    placement: 'topRight',
+                });
+            }
+        };
+
+        update();
+        const timer = window.setInterval(update, 1000);
+        return () => window.clearInterval(timer);
+    }, [todayRow?.on_break, todayRow?.break_started_at, todayRow?.break_target_minutes]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -89,20 +137,76 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
         }
     }, []);
 
-    useEffect(() => {
-        setSelectedPrintDays(daysWithRecords);
-    }, [initialRows]);
+    const formatDisplayTime = (time: string | null) => {
+        if (!time) return '-';
+        const parsed = dayjs(time, ['HH:mm:ss', 'HH:mm', 'h:mm A'], true);
+        return parsed.isValid() ? parsed.format('h:mm A') : time;
+    };
 
-    const handleAddRow = () => {
-        setEditingRow(null);
-        form.resetFields();
-        setIsModalVisible(true);
+    const refreshRows = () => router.reload();
+
+    const handleClockIn = async () => {
+        if (!todayRow) return;
+        try {
+            await axios.patch(route('dtr.rows.clock_in', { row: todayRow.id }));
+            message.success('Clocked in.');
+            refreshRows();
+        } catch (error: any) {
+            message.error(error.response?.data?.error || 'Clock in failed.');
+        }
+    };
+
+    const handleClockOut = async () => {
+        if (!todayRow) return;
+        try {
+            await axios.patch(route('dtr.rows.clock_out', { row: todayRow.id }));
+            message.success('Clocked out.');
+            refreshRows();
+        } catch (error: any) {
+            message.error(error.response?.data?.error || 'Clock out failed.');
+        }
+    };
+
+    const handleStartBreak = async () => {
+        if (!todayRow) return;
+        try {
+            await axios.patch(route('dtr.rows.break_start', { row: todayRow.id }), { minutes: breakChoice });
+            message.success('Break started.');
+            refreshRows();
+        } catch (error: any) {
+            message.error(error.response?.data?.error || 'Failed to start break.');
+        }
+    };
+
+    const handleFinishBreak = async () => {
+        if (!todayRow) return;
+        try {
+            await axios.patch(route('dtr.rows.break_finish', { row: todayRow.id }));
+            message.success('Break finished.');
+            refreshRows();
+        } catch (error: any) {
+            message.error(error.response?.data?.error || 'Failed to finish break.');
+        }
+    };
+
+    const handleLeave = async (row: DtrRow) => {
+        try {
+            await axios.patch(route('dtr.rows.leave', { row: row.id }));
+            message.success('Row marked as leave.');
+            refreshRows();
+        } catch (error: any) {
+            message.error(error.response?.data?.error || 'Failed to mark leave.');
+        }
     };
 
     const handleEditRow = (row: DtrRow) => {
+        if (!row.can_edit || row.date === today_date) {
+            message.warning('Only past rows up to yesterday can be edited.');
+            return;
+        }
+
         setEditingRow(row);
         form.setFieldsValue({
-            date: dayjs(row.date),
             time_in: row.time_in ? dayjs(row.time_in, ['HH:mm:ss', 'HH:mm', 'h:mm A']) : null,
             time_out: row.time_out ? dayjs(row.time_out, ['HH:mm:ss', 'HH:mm', 'h:mm A']) : null,
             break_minutes: row.break_minutes ?? 0,
@@ -111,555 +215,316 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
         setIsModalVisible(true);
     };
 
-    const handleDeleteRow = (rowId: number) => {
-        Modal.confirm({
-            title: 'Delete Record',
-            content: 'Are you sure you want to delete this attendance record?',
-            okText: 'Yes',
-            cancelText: 'No',
-            onOk: async () => {
-                try {
-                    await axios.delete(route('dtr.rows.destroy', { row: rowId }));
-                    message.success('Record deleted successfully');
-                    router.reload();
-                } catch (error) {
-                    console.error('Error deleting row:', error);
-                    message.error('Failed to delete record');
-                }
-            },
-        });
-    };
-
-    const handleSubmit = async (values: any) => {
+    const handleSubmitEdit = async (values: any) => {
+        if (!editingRow) return;
         setSubmitting(true);
+
         try {
-            const date = values.date ? values.date.format('YYYY-MM-DD') : null;
-            const timeIn = values.time_in ? values.time_in.format('HH:mm') : null;
-            const timeOut = values.time_out ? values.time_out.format('HH:mm') : null;
-            const breakMinutes =
-                values.break_minutes !== null && values.break_minutes !== undefined
-                    ? Number(values.break_minutes)
-                    : null;
+            await axios.patch(route('dtr.rows.update', { row: editingRow.id }), {
+                time_in: values.time_in ? values.time_in.format('HH:mm') : null,
+                time_out: values.time_out ? values.time_out.format('HH:mm') : null,
+                break_minutes: values.break_minutes ?? 0,
+                remarks: values.remarks || null,
+            });
 
-            if (editingRow) {
-                const payload = {
-                    time_in: timeIn,
-                    time_out: timeOut,
-                    break_minutes: breakMinutes,
-                    remarks: values.remarks || null,
-                };
-                await axios.patch(route('dtr.rows.update', { row: editingRow.id }), payload);
-                message.success('Record updated successfully');
-            } else {
-                const payload = {
-                    dtr_month_id: month.id,
-                    date: date,
-                    time_in: timeIn,
-                    time_out: timeOut,
-                    break_minutes: breakMinutes,
-                    remarks: values.remarks || null,
-                };
-                await axios.post(route('dtr.rows.store'), payload);
-                message.success('Attendance record added');
-            }
-
+            message.success('Record updated.');
             setIsModalVisible(false);
+            setEditingRow(null);
             form.resetFields();
-            router.reload();
+            refreshRows();
         } catch (error: any) {
-            const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to save record';
-            message.error(errorMsg);
+            message.error(error.response?.data?.error || 'Update failed.');
         } finally {
             setSubmitting(false);
         }
     };
 
-    const handlePrint = () => {
-        if (selectedPrintDays.length === 0) {
-            message.warning('Select at least one day to print.');
-            return;
-        }
-        window.print();
+    const selectFirst15 = () => {
+        setSelectedPrintDays(daysWithRecords.filter((day) => day <= 15));
     };
 
-    const handleFinishMonth = async () => {
-        Modal.confirm({
-            title: 'Finish Month',
-            content: 'Are you sure you want to finish this month? You will no longer be able to edit attendance records.',
-            okText: 'Finish Month',
-            cancelText: 'Cancel',
-            onOk: async () => {
-                try {
-                    await axios.patch(route('dtr.months.finish', { month: month.id }));
-                    message.success('Month marked as finished');
-                    router.reload();
-                } catch (error: any) {
-                    const errorMsg = error.response?.data?.message || 'Failed to finish month';
-                    message.error(errorMsg);
-                }
-            },
-        });
+    const selectLast15 = () => {
+        const daysInMonth = dayjs(`${month.year}-${month.month}-01`).daysInMonth();
+        const start = daysInMonth - 14;
+        setSelectedPrintDays(daysWithRecords.filter((day) => day >= start));
+    };
+
+    const selectWholeMonth = () => {
+        setSelectedPrintDays(daysWithRecords);
+    };
+
+    const rowClassName = (row: DtrRow) => {
+        if (row.status === 'finished') return 'dtr-row-finished';
+        if (row.status === 'missed') return 'dtr-row-missed';
+        if (row.status === 'leave') return 'dtr-row-leave';
+        return '';
     };
 
     const columns = [
         {
             title: 'No.',
             key: 'index',
-            render: (_: any, __: any, index: number) => index + 1,
             width: 60,
+            render: (_: any, __: any, index: number) => index + 1,
         },
         {
             title: 'Day',
             dataIndex: 'day',
             key: 'day',
-            width: 100,
+            width: 120,
         },
         {
             title: 'Date',
             dataIndex: 'date',
             key: 'date',
-            render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
             width: 120,
+            render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
         },
         {
-            title: 'Time In',
+            title: 'IN',
             dataIndex: 'time_in',
             key: 'time_in',
-            render: (time: string | null) => formatDisplayTime(time),
             width: 100,
+            render: (time: string | null) => formatDisplayTime(time),
         },
         {
-            title: 'Time Out',
+            title: 'OUT',
             dataIndex: 'time_out',
             key: 'time_out',
-            render: (time: string | null) => formatDisplayTime(time),
             width: 100,
+            render: (time: string | null) => formatDisplayTime(time),
         },
         {
-            title: 'Total Hours',
-            dataIndex: 'total_hours',
-            key: 'total_hours',
-            render: (hours: number) => hours.toFixed(2),
-            width: 120,
+            title: 'Late',
+            dataIndex: 'late_minutes',
+            key: 'late_minutes',
+            width: 90,
+            render: (minutes: number) => (minutes > 0 ? `${minutes}m` : '-'),
         },
         {
-            title: 'Break (mins)',
+            title: 'Break',
             dataIndex: 'break_minutes',
             key: 'break_minutes',
-            render: (minutes: number) => minutes > 0 ? minutes : (minutes === 0 ? '0' : '-'),
-            width: 100,
+            width: 90,
+            render: (minutes: number) => `${minutes || 0}m`,
+        },
+        {
+            title: 'Total',
+            dataIndex: 'total_hours',
+            key: 'total_hours',
+            width: 90,
+            render: (hours: number) => hours.toFixed(2),
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            render: (status: string) => (
-                <span className={status === 'finished' ? 'text-green-600' : 'text-yellow-600'}>
-                    {status === 'finished' ? 'Finished' : 'Draft'}
-                </span>
-            ),
-            width: 100,
+            width: 120,
+            render: (status: RowStatus) => status.replace('_', ' ').toUpperCase(),
         },
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: DtrRow) => (
-                <Space>
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditRow(record)}
-                        disabled={month.is_fulfilled}
-                    />
-                    <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteRow(record.id)}
-                        disabled={month.is_fulfilled}
-                    />
-                </Space>
-            ),
-            width: 100,
+            width: 170,
+            render: (_: any, row: DtrRow) => {
+                const canMarkLeave = row.can_edit && !row.time_in && !row.time_out && row.date < today_date;
+                return (
+                    <Space>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditRow(row)}
+                            disabled={!row.can_edit || row.date === today_date}
+                        />
+                        <Button
+                            size="small"
+                            onClick={() => handleLeave(row)}
+                            disabled={!canMarkLeave}
+                        >
+                            Leave
+                        </Button>
+                    </Space>
+                );
+            },
         },
     ];
-
-    const progressPercentage = (total_hours / required_hours) * 100;
-    const isMonthComplete = total_hours >= required_hours;
 
     return (
         <>
             <Head title={`DTR - ${month.monthName}`} />
             <style>{`
+                .dtr-row-finished td { background: #f6ffed !important; }
+                .dtr-row-missed td { background: #fff1f0 !important; }
+                .dtr-row-leave td { background: #fffbe6 !important; }
                 @media print {
-                    @page {
-                        size: A4 portrait;
-                        margin: 8mm;
-                    }
-
-                    body {
-                        background: #fff !important;
-                    }
-
-                    .screen-only {
-                        display: none !important;
-                    }
-
-                    .ant-layout-header {
-                        display: none !important;
-                    }
-
-                    .ant-layout,
-                    .ant-layout-content {
-                        min-height: auto !important;
-                        height: auto !important;
-                    }
-
-                    .ant-layout-content > div {
-                        max-width: none !important;
-                        width: 100% !important;
-                        padding: 0 !important;
-                        border-radius: 0 !important;
-                        box-shadow: none !important;
-                        background: #fff !important;
-                    }
-
-                    .print-only {
-                        display: block !important;
-                    }
-
-                    .print-root {
-                        width: 100%;
-                        color: #000;
-                        font-size: 10px;
-                        line-height: 1.2;
-                        position: relative;
-                        padding-bottom: 10px;
-                        page-break-inside: avoid;
-                        break-inside: avoid-page;
-                    }
-
-                    .print-title {
-                        text-align: center;
-                        font-size: 16px;
-                        font-weight: 700;
-                        margin-bottom: 8px;
-                    }
-
-                    .print-grid {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 6px 16px;
-                        margin-bottom: 8px;
-                    }
-
-                    .print-field {
-                        border-bottom: 1px solid #000;
-                        padding-bottom: 2px;
-                        min-height: 14px;
-                    }
-
-                    .print-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        table-layout: fixed;
-                    }
-
-                    .print-table th,
-                    .print-table td {
-                        border: 1px solid #000;
-                        padding: 2px 3px;
-                        font-size: 9px;
-                        text-align: center;
-                        vertical-align: middle;
-                        word-break: break-word;
-                    }
-
-                    .print-summary {
-                        margin-top: 6px;
-                        display: grid;
-                        grid-template-columns: 1fr 1fr 1fr;
-                        gap: 8px;
-                        font-size: 10px;
-                    }
-
-                    .print-sign {
-                        margin-top: 14px;
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 16px;
-                    }
-
-                    .print-sign-line {
-                        border-bottom: 1px solid #000;
-                        height: 24px;
-                    }
-
-                    .print-footer {
-                        position: absolute;
-                        right: 0;
-                        bottom: 0;
-                        text-align: right;
-                        font-size: 8px;
-                        color: #333;
-                    }
+                    @page { size: A4 portrait; margin: 8mm; }
+                    .screen-only, .ant-layout-header { display: none !important; }
+                    .print-only { display: block !important; }
                 }
             `}</style>
 
             <div className="screen-only">
-                    {/* Header */}
-                    <div className="mb-4 flex items-center justify-between">
-                        <Link href={route('dtr.index', { tab: '2' })}>
-                            <Button icon={<ArrowLeftOutlined />}>
-                                Back
-                            </Button>
-                        </Link>
-                        <Space>
-                            <Select
-                                mode="multiple"
-                                value={selectedPrintDays}
-                                onChange={setSelectedPrintDays}
-                                placeholder="Select days to print"
-                                style={{ minWidth: 280 }}
-                                maxTagCount="responsive"
-                                options={daysWithRecords.map((day) => ({
-                                    label: `${day}`,
-                                    value: day,
-                                }))}
-                            />
-                            <Button
-                                icon={<PrinterOutlined />}
-                                onClick={handlePrint}
-                            >
-                                Print DTR
-                            </Button>
-                        </Space>
+                <div className="mb-4 flex items-center justify-between">
+                    <Link href={route('dtr.index', { tab: '2' })}>
+                        <Button icon={<ArrowLeftOutlined />}>Back</Button>
+                    </Link>
+                    <Space wrap>
+                        <Button onClick={selectFirst15}>Print First 15</Button>
+                        <Button onClick={selectLast15}>Print Last 15</Button>
+                        <Button onClick={selectWholeMonth}>Print Whole Month</Button>
+                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+                            Print
+                        </Button>
+                    </Space>
+                </div>
+
+                <Card title={<h1 className="text-2xl font-bold">{month.monthName} DTR</h1>} className="mb-6">
+                    <Row gutter={16} className="mb-6">
+                        <Col xs={24} sm={8}>
+                            <Statistic title="Total Hours Logged" value={total_hours.toFixed(2)} suffix="hours" />
+                        </Col>
+                        <Col xs={24} sm={8}>
+                            <Statistic title="Required Hours" value={required_hours} suffix="hours" />
+                        </Col>
+                        <Col xs={24} sm={8}>
+                            <Statistic title="Remaining Hours" value={remaining_hours.toFixed(2)} suffix="hours" />
+                        </Col>
+                    </Row>
+
+                    <div className="mb-6">
+                        <p className="mb-2">Progress: {progressPercentage.toFixed(1)}%</p>
+                        <Progress percent={Math.min(100, Number(progressPercentage.toFixed(10)))} />
                     </div>
 
-                    {/* Month Card */}
-                    <Card
-                        title={<h1 className="text-2xl font-bold">{month.monthName} DTR</h1>}
-                        className="mb-6"
-                    >
-                        {isMonthComplete && (
-                            <Alert
-                                message="Month Fulfilled"
-                                description="You have fulfilled the required hours for this month."
-                                type="success"
-                                showIcon
-                                className="mb-4"
-                            />
-                        )}
+                    <Alert
+                        type="info"
+                        showIcon
+                        className="mb-4"
+                        message="Rules"
+                        description={`Shift start is ${shift_start} with ${grace_minutes} minutes grace period. Past rows are editable only until yesterday. Today uses IN/OUT/BREAK buttons only.`}
+                    />
 
-                        <Row gutter={16} className="mb-6">
-                            <Col xs={24} sm={8}>
-                                <Statistic
-                                    title="Total Hours Logged"
-                                    value={total_hours.toFixed(2)}
-                                    suffix="hours"
-                                    valueStyle={{ color: '#1890ff' }}
-                                />
-                            </Col>
-                            <Col xs={24} sm={8}>
-                                <Statistic
-                                    title="Required Hours"
-                                    value={required_hours}
-                                    suffix="hours"
-                                />
-                            </Col>
-                            <Col xs={24} sm={8}>
-                                <Statistic
-                                    title="Remaining Hours"
-                                    value={Math.max(0, remaining_hours).toFixed(2)}
-                                    suffix="hours"
-                                    valueStyle={{ color: remaining_hours > 0 ? '#cf1322' : '#52c41a' }}
-                                />
-                            </Col>
-                        </Row>
-
-                        <div className="mb-6">
-                            <p className="mb-2">Progress: {progressPercentage.toFixed(1)}%</p>
-                            <Progress
-                                percent={Math.min(100, Number(progressPercentage.toFixed(10)))}
-                                strokeColor={isMonthComplete ? '#52c41a' : '#1890ff'}
-                            />
-                        </div>
-
-                        <div className="mb-4 flex items-center gap-2">
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddRow}
-                                disabled={month.is_fulfilled}
-                            >
-                                Add Attendance Record
-                            </Button>
-                            <Button
-                                icon={<CheckCircleOutlined />}
-                                onClick={handleFinishMonth}
-                                disabled={month.is_fulfilled}
-                            >
-                                {month.is_fulfilled ? 'Month Finished' : 'Finish Month'}
-                            </Button>
-                        </div>
-
-                        {initialRows.length === 0 ? (
-                            <Empty
-                                description="No attendance records for this month"
-                                style={{ marginTop: 50, marginBottom: 50 }}
-                            />
-                        ) : (
-                            <Table
-                                dataSource={initialRows}
-                                columns={columns}
-                                rowKey="id"
-                                pagination={{
-                                    pageSize: 20,
-                                    total: initialRows.length,
-                                }}
-                                size="small"
-                            />
-                        )}
-                    </Card>
-
-                    {/* Modal for adding/editing records */}
-                    <Modal
-                        title={editingRow ? 'Edit Attendance Record' : 'Add Attendance Record'}
-                        open={isModalVisible}
-                        onCancel={() => {
-                            setIsModalVisible(false);
-                            setEditingRow(null);
-                            form.resetFields();
-                        }}
-                        footer={null}
-                    >
-                        <Form
-                            form={form}
-                            layout="vertical"
-                            onFinish={handleSubmit}
-                        >
-                            {!editingRow && (
-                                <Form.Item
-                                    name="date"
-                                    label="Date"
-                                    rules={[{ required: true, message: 'Please select a date' }]}
-                                >
-                                    <DatePicker
-                                        style={{ width: '100%' }}
-                                        defaultPickerValue={monthStart}
-                                        disabledDate={(current) => {
-                                            if (!current) return false;
-                                            const outsideMonth =
-                                                current.year() !== month.year ||
-                                                current.month() + 1 !== month.month;
-                                            const recordDate = dayjs(current).format('YYYY-MM-DD');
-                                            return outsideMonth || initialRows.some((row) => row.date === recordDate);
-                                        }}
-                                    />
-                                </Form.Item>
-                            )}
-
-                            <Row gutter={12}>
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="time_in"
-                                        label="Time In"
-                                        rules={[{ required: true, message: 'Please select time in' }]}
-                                    >
-                                        <TimePicker style={{ width: '100%' }} format="h:mm A" use12Hours />
-                                    </Form.Item>
-                                </Col>
-                                <Col xs={24} md={12}>
-                                    <Form.Item
-                                        name="time_out"
-                                        label="Time Out"
-                                    >
-                                        <TimePicker style={{ width: '100%' }} format="h:mm A" use12Hours />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
-
-                            <Form.Item
-                                name="break_minutes"
-                                label="Break Time (Optional)"
-                            >
-                                <Select allowClear placeholder="Select break time" options={breakOptions} />
-                            </Form.Item>
-
-                            <Form.Item
-                                name="remarks"
-                                label="Remarks (Optional)"
-                            >
-                                <Input.TextArea rows={3} placeholder="Any additional notes" />
-                            </Form.Item>
-
-                            <Form.Item>
+                    {todayRow && (
+                        <Card size="small" className="mb-4" title={`Today (${dayjs(todayRow.date).format('YYYY-MM-DD')})`}>
+                            <Space wrap>
                                 <Button
                                     type="primary"
-                                    htmlType="submit"
-                                    loading={submitting}
-                                    block
+                                    onClick={handleClockIn}
+                                    disabled={!!todayRow.time_in}
                                 >
-                                    {editingRow ? 'Update Record' : 'Add Record'}
+                                    IN
                                 </Button>
-                            </Form.Item>
-                        </Form>
-                    </Modal>
+                                <Button
+                                    type="primary"
+                                    onClick={handleClockOut}
+                                    disabled={!todayRow.time_in || !!todayRow.time_out}
+                                >
+                                    OUT
+                                </Button>
+                                <Select
+                                    value={breakChoice}
+                                    onChange={setBreakChoice}
+                                    style={{ width: 120 }}
+                                    options={BREAK_OPTIONS}
+                                    disabled={todayRow.on_break}
+                                />
+                                <Button
+                                    onClick={handleStartBreak}
+                                    disabled={!todayRow.time_in || !!todayRow.time_out || todayRow.on_break}
+                                >
+                                    Take a Break
+                                </Button>
+                                <Button
+                                    onClick={handleFinishBreak}
+                                    disabled={!todayRow.on_break}
+                                >
+                                    Finish Break
+                                </Button>
+                                <Button
+                                    onClick={() => handleLeave(todayRow)}
+                                    disabled={!(todayRow.status === 'missed' && !todayRow.time_in && !todayRow.time_out)}
+                                >
+                                    LEAVE
+                                </Button>
+                            </Space>
+                            {todayRow.on_break && (
+                                <div className="mt-3 text-sm text-amber-600">
+                                    Break running: {breakCountdownSec !== null ? `${Math.max(0, breakCountdownSec)}s remaining` : '...'}
+                                </div>
+                            )}
+                        </Card>
+                    )}
+
+                    {initialRows.length === 0 ? (
+                        <Empty description="No attendance records for this month" />
+                    ) : (
+                        <Table
+                            dataSource={initialRows}
+                            columns={columns}
+                            rowKey="id"
+                            rowClassName={rowClassName}
+                            pagination={{ pageSize: 20, total: initialRows.length }}
+                            size="small"
+                        />
+                    )}
+                </Card>
+
+                <Modal
+                    title="Edit Attendance Record"
+                    open={isModalVisible}
+                    footer={null}
+                    onCancel={() => {
+                        setIsModalVisible(false);
+                        setEditingRow(null);
+                        form.resetFields();
+                    }}
+                >
+                    <Form form={form} layout="vertical" onFinish={handleSubmitEdit}>
+                        <Row gutter={12}>
+                            <Col xs={24} md={12}>
+                                <Form.Item name="time_in" label="Time In">
+                                    <TimePicker style={{ width: '100%' }} format="h:mm A" use12Hours />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item name="time_out" label="Time Out">
+                                    <TimePicker style={{ width: '100%' }} format="h:mm A" use12Hours />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Form.Item name="break_minutes" label="Break Minutes">
+                            <Select allowClear options={BREAK_OPTIONS} />
+                        </Form.Item>
+                        <Form.Item name="remarks" label="Remarks">
+                            <Input.TextArea rows={3} />
+                        </Form.Item>
+                        <Form.Item>
+                            <Button htmlType="submit" type="primary" block loading={submitting}>
+                                Update
+                            </Button>
+                        </Form.Item>
+                    </Form>
+                </Modal>
             </div>
 
             <div className="print-only" style={{ display: 'none' }}>
                 <div className="print-root">
-                    <div className="print-title">DAILY TIME RECORD - {month.monthName.toUpperCase()}</div>
-
-                    <div className="print-grid">
-                        <div>
-                            <div><strong>Student Name:</strong></div>
-                            <div className="print-field">{user.student_name || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>Student Number:</strong></div>
-                            <div className="print-field">{user.student_no || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>School:</strong></div>
-                            <div className="print-field">{user.school || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>Required Hours:</strong></div>
-                            <div className="print-field">{required_hours}</div>
-                        </div>
-                        <div>
-                            <div><strong>Company:</strong></div>
-                            <div className="print-field">{user.company || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>Department:</strong></div>
-                            <div className="print-field">{user.department || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>Supervisor Name:</strong></div>
-                            <div className="print-field">{user.supervisor_name || '-'}</div>
-                        </div>
-                        <div>
-                            <div><strong>Supervisor Position:</strong></div>
-                            <div className="print-field">{user.supervisor_position || '-'}</div>
-                        </div>
-                    </div>
-
-                    <table className="print-table">
+                    <h2 style={{ textAlign: 'center' }}>DAILY TIME RECORD - {month.monthName.toUpperCase()}</h2>
+                    <p><strong>Name:</strong> {user.student_name || '-'}</p>
+                    <p><strong>Company:</strong> {user.company || '-'}</p>
+                    <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
-                                <th style={{ width: '4%' }}>No.</th>
-                                <th style={{ width: '10%' }}>Day</th>
-                                <th style={{ width: '10%' }}>Date</th>
-                                <th style={{ width: '12%' }}>Time In</th>
-                                <th style={{ width: '12%' }}>Time Out</th>
-                                <th style={{ width: '10%' }}>Break</th>
-                                <th style={{ width: '10%' }}>Total Hrs</th>
-                                <th style={{ width: '10%' }}>Status</th>
-                                <th style={{ width: '22%' }}>Remarks</th>
+                                <th>No.</th>
+                                <th>Day</th>
+                                <th>Date</th>
+                                <th>IN</th>
+                                <th>OUT</th>
+                                <th>Break</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -670,7 +535,7 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                                     <td>{dayjs(row.date).format('MM/DD')}</td>
                                     <td>{formatDisplayTime(row.time_in)}</td>
                                     <td>{formatDisplayTime(row.time_out)}</td>
-                                    <td>{row.break_minutes ?? 0}</td>
+                                    <td>{row.break_minutes}</td>
                                     <td>{row.total_hours.toFixed(2)}</td>
                                     <td>{row.status}</td>
                                     <td>{row.remarks || ''}</td>
@@ -678,30 +543,9 @@ export default function DtrShow({ month, rows: initialRows, total_hours, require
                             ))}
                         </tbody>
                     </table>
-
-                    <div className="print-summary">
-                        <div><strong>Total Hours Logged:</strong> {printableTotalHours.toFixed(2)}</div>
-                        <div><strong>Required Hours:</strong> {required_hours}</div>
-                        <div><strong>Remaining Hours:</strong> {printableRemainingHours.toFixed(2)}</div>
+                    <div className="mt-3">
+                        <strong>Total:</strong> {printableTotalHours.toFixed(2)}h | <strong>Remaining:</strong> {printableRemainingHours.toFixed(2)}h
                     </div>
-
-                    <div className="print-sign">
-                        <div>
-                            <div className="print-sign-line" />
-                            <div style={{ textAlign: 'center', marginTop: 4 }}>Student Signature</div>
-                        </div>
-                        <div>
-                            <div className="print-sign-line" />
-                            <div style={{ textAlign: 'center', marginTop: 4 }}>
-                                {user.supervisor_name || 'Supervisor Name'}
-                            </div>
-                            <div style={{ textAlign: 'center', fontSize: 9 }}>
-                                {user.supervisor_position || 'Supervisor'}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="print-footer">DTR System by Johnson Roque Jr.</div>
                 </div>
             </div>
         </>
