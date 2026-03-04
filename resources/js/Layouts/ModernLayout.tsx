@@ -46,20 +46,20 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     colorPrimary: '#2563eb',
                     borderRadius: 8,
                     fontSize: 14,
-                    fontFamily: 'Tahoma, Segoe UI, Verdana, sans-serif',
+                    fontFamily: 'Segoe UI, Tahoma, Verdana, sans-serif',
                 },
                 components: {
                     Layout: {
-                        colorBgHeader: '#eef5ff',
+                        colorBgHeader: '#ffffff',
                         colorBgBody: 'transparent',
                     },
                     Menu: {
-                        itemBg: '#f7fbff',
-                        itemSelectedBg: '#dce9ff',
-                        itemSelectedColor: '#1f4f9e',
-                        itemColor: '#355a8c',
-                        itemHoverBg: '#eaf2ff',
-                        itemHoverColor: '#1f4f9e',
+                        itemBg: '#ffffff',
+                        itemSelectedBg: '#eff6ff',
+                        itemSelectedColor: '#1d4ed8',
+                        itemColor: '#334155',
+                        itemHoverBg: '#f8fafc',
+                        itemHoverColor: '#0f172a',
                     },
                 },
             }}
@@ -68,7 +68,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                 <Header className="liquid-header" style={{ 
                     padding: '0 16px', 
                     height: '72px',
-                    boxShadow: '0 10px 36px rgba(15, 23, 42, 0.06)',
+                    boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
                     display: 'flex',
                     justifyContent: 'center',
                 }}>
@@ -90,7 +90,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                 style={{
                                     height: '42px',
                                     borderRadius: '10px',
-                                    color: '#1d4ed8',
+                                    color: '#0f172a',
                                     fontSize: '18px',
                                     fontWeight: 700,
                                     paddingInline: '14px',
@@ -106,9 +106,9 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                     <Avatar
                                         size={32}
                                         icon={<UserOutlined />}
-                                        style={{ background: '#1d4ed8' }}
+                                        style={{ background: '#2563eb' }}
                                     />
-                                    <span style={{ fontSize: '14px', fontWeight: 500, color: '#1f365d' }}>
+                                    <span style={{ fontSize: '14px', fontWeight: 500, color: '#0f172a' }}>
                                         {user.name}
                                     </span>
                                 </Space>

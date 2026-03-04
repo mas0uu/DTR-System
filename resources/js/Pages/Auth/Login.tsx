@@ -66,7 +66,7 @@ export default function Login({
                             name="credential"
                             value={data.credential}
                             onChange={(e) => setData('credential', e.target.value)}
-                            placeholder="e.g., 2022123456"
+                            placeholder="Enter your student number or email"
                             className="mt-1 block w-full"
                             autoFocus
                         />

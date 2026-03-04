@@ -138,7 +138,6 @@ class RegisteredUserController extends Controller
                     'break_started_at' => null,
                     'break_target_minutes' => null,
                     'status' => 'draft',
-                    'remarks' => null,
                 ]
             );
         }

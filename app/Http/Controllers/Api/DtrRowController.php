@@ -20,7 +20,6 @@ class DtrRowController extends Controller
             'date' => 'required|date',
             'time_in' => 'nullable|date_format:H:i',
             'time_out' => 'nullable|date_format:H:i|after:time_in',
-            'remarks' => 'nullable|string|max:255',
         ]);
 
         $month = DtrMonth::findOrFail($validated['dtr_month_id']);
@@ -39,7 +38,6 @@ class DtrRowController extends Controller
             [
                 'time_in' => $validated['time_in'] ?? null,
                 'time_out' => $validated['time_out'] ?? null,
-                'remarks' => $validated['remarks'] ?? null,
             ]
         );
         return response()->json([
@@ -61,7 +59,6 @@ class DtrRowController extends Controller
             'date' => 'required|date',
             'time_in' => 'nullable|date_format:H:i',
             'time_out' => 'nullable|date_format:H:i|after:time_in',
-            'remarks' => 'nullable|string|max:255',
         ]);
 
         $row->fill($validated);

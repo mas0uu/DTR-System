@@ -67,7 +67,6 @@ class DtrSeeder extends Seeder
                         'time_out' => $timeOut->format('H:i:s'),
                         'total_minutes' => $totalMinutes,
                         'status' => 'finished',
-                        'remarks' => 'Regular work day',
                     ]);
 
                     $dayCount++;
@@ -119,7 +118,6 @@ class DtrSeeder extends Seeder
                     'time_out' => $timeOut->format('H:i:s'),
                     'total_minutes' => $totalMinutes,
                     'status' => 'finished',
-                    'remarks' => null,
                 ]);
             }
         }

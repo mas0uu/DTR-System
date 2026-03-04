@@ -19,7 +19,6 @@ class DtrRow extends Model
         'break_started_at',
         'break_target_minutes',
         'status',
-        'remarks',
     ];
 
     protected $casts = [

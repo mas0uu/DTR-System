@@ -60,7 +60,6 @@ class DtrRowController extends Controller
             'time_in' => 'required|date_format:H:i',
             'time_out' => 'required|date_format:H:i|after:time_in',
             'break_minutes' => 'nullable|integer|min:0',
-            'remarks' => 'nullable|string|max:255',
         ]);
 
         $timeIn = isset($validated['time_in'])
@@ -124,7 +123,6 @@ class DtrRowController extends Controller
             'time_in' => $now->format('H:i:s'),
             'status' => 'in_progress',
             'late_minutes' => $lateMinutes,
-            'remarks' => $lateMinutes > 0 ? 'Late by '.$lateMinutes.' minutes' : null,
         ]);
 
         return response()->json($this->rowPayload($row->refresh()));
@@ -238,7 +236,6 @@ class DtrRowController extends Controller
 
         $row->update([
             'status' => 'leave',
-            'remarks' => 'Leave',
             'on_break' => false,
             'break_started_at' => null,
             'break_target_minutes' => null,
@@ -292,7 +289,6 @@ class DtrRowController extends Controller
                 'break_started_at' => null,
                 'break_target_minutes' => null,
                 'status' => 'draft',
-                'remarks' => null,
             ]
         );
     }
@@ -313,7 +309,6 @@ class DtrRowController extends Controller
             'break_target_minutes' => $row->break_target_minutes,
             'break_started_at' => optional($row->break_started_at)?->toIso8601String(),
             'status' => $row->status,
-            'remarks' => $row->remarks,
         ];
     }
 }

@@ -44,6 +44,15 @@ class DtrMonthController extends Controller
                 ];
             });
 
+        $todayDate = $now->toDateString();
+        $todayRow = DtrRow::query()
+            ->whereHas('dtrMonth', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->whereDate('date', $todayDate)
+            ->orderByDesc('id')
+            ->first();
+
         return Inertia::render('Dtr/Index', [
             'months' => $months,
             'current_month_id' => $currentMonth->id,
@@ -65,6 +74,21 @@ class DtrMonthController extends Controller
                 'work_time_in' => $user->work_time_in,
                 'work_time_out' => $user->work_time_out,
             ],
+            'today_row' => $todayRow ? [
+                'id' => $todayRow->id,
+                'dtr_month_id' => $todayRow->dtr_month_id,
+                'date' => $todayRow->date->format('Y-m-d'),
+                'time_in' => $todayRow->time_in,
+                'time_out' => $todayRow->time_out,
+                'on_break' => (bool) $todayRow->on_break,
+                'break_minutes' => (int) $todayRow->break_minutes,
+                'break_target_minutes' => $todayRow->break_target_minutes,
+                'break_started_at' => optional($todayRow->break_started_at)?->toIso8601String(),
+                'late_minutes' => (int) $todayRow->late_minutes,
+                'status' => $todayRow->status,
+            ] : null,
+            'shift_start' => '08:00',
+            'grace_minutes' => 30,
         ]);
     }
 
@@ -103,7 +127,6 @@ class DtrMonthController extends Controller
                     'break_target_minutes' => $row->break_target_minutes,
                     'break_started_at' => optional($row->break_started_at)?->toIso8601String(),
                     'status' => $row->status,
-                    'remarks' => $row->remarks,
                     'can_edit' => $canEdit,
                 ];
             });
@@ -227,7 +250,6 @@ class DtrMonthController extends Controller
             }
 
             $isLegacyAutofill = $existingRow->status === 'finished'
-                && $existingRow->remarks === null
                 && (int) $existingRow->late_minutes === 0
                 && (int) $existingRow->break_minutes === 0
                 && $normalizedWorkTimeIn
@@ -271,14 +293,12 @@ class DtrMonthController extends Controller
                     'break_started_at' => null,
                     'break_target_minutes' => null,
                     'status' => 'draft',
-                    'remarks' => null,
                 ]
             );
 
             // Normalize legacy auto-filled rows that were created as "finished"
             // without actual user input (template work hours only).
             $isLegacyAutofill = $row->status === 'finished'
-                && $row->remarks === null
                 && (int) $row->late_minutes === 0
                 && (int) $row->break_minutes === 0
                 && $normalizedWorkTimeIn
