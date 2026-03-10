@@ -1,4 +1,8 @@
 ﻿import { Head, Link, router } from '@inertiajs/react';
+import { attendanceStatusColor, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
+import PageHeader from '@/Components/ui/PageHeader';
+import MetricCard from '@/Components/ui/MetricCard';
+import TableCard from '@/Components/ui/TableCard';
 import { useEffect, useMemo, useState } from 'react';
 import {
     Button,
@@ -11,7 +15,7 @@ import {
     Row,
     Select,
     Space,
-    Statistic,
+    Tag,
     Table,
     TimePicker,
     message,
@@ -37,6 +41,12 @@ interface DtrRow {
     break_target_minutes: number | null;
     break_started_at: string | null;
     status: RowStatus;
+    leave_request_status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
+    leave_request_type?: 'leave' | 'intern_absence' | null;
+    leave_request_is_paid?: boolean | null;
+    is_locked_by_payroll?: boolean;
+    attendance_statuses: string[];
+    warnings: string[];
     can_edit: boolean;
 }
 
@@ -77,7 +87,7 @@ export default function DtrShow({
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingRow, setEditingRow] = useState<DtrRow | null>(null);
     const [submitting, setSubmitting] = useState(false);
-    const [breakChoice, setBreakChoice] = useState<number>(15);
+    const [breakChoice, setBreakChoice] = useState<number>(user?.default_break_minutes ?? 60);
     const [breakCountdownSec, setBreakCountdownSec] = useState<number | null>(null);
     const [selectedPrintDays, setSelectedPrintDays] = useState<number[]>([]);
     const [printRange, setPrintRange] = useState<'first_15' | 'last_15' | 'whole_month'>('whole_month');
@@ -222,17 +232,53 @@ export default function DtrShow({
 
     const handleLeave = async (row: DtrRow) => {
         try {
-            await axios.patch(route('dtr.rows.leave', { row: row.id }));
-            message.success('Row marked as leave.');
+            const reasonPrompt = isIntern ? 'Absence reason (optional):' : 'Leave reason (optional):';
+            const reasonInput = window.prompt(reasonPrompt);
+            if (reasonInput === null) {
+                return;
+            }
+
+            const reason = reasonInput.trim();
+            let isPaid = false;
+            if (!isIntern) {
+                const leaveTypeInput = window.prompt(
+                    `Leave type for ${dayjs(row.date).format('YYYY-MM-DD')} (paid or unpaid):`,
+                    'paid'
+                );
+                if (leaveTypeInput === null) {
+                    return;
+                }
+                const normalized = leaveTypeInput.trim().toLowerCase();
+                if (!['paid', 'unpaid'].includes(normalized)) {
+                    message.error('Invalid leave type. Use "paid" or "unpaid".');
+                    return;
+                }
+                isPaid = normalized === 'paid';
+            }
+            await axios.patch(route('dtr.rows.leave', { row: row.id }), {
+                reason,
+                is_paid: isPaid,
+            });
+            message.success(isIntern ? 'Absence request submitted for admin approval.' : 'Leave request submitted for admin approval.');
             refreshRows();
         } catch (error: any) {
-            message.error(error.response?.data?.error || 'Failed to mark leave.');
+            message.error(error.response?.data?.error || (isIntern ? 'Failed to submit absence request.' : 'Failed to mark leave.'));
         }
     };
 
     const handleEditRow = (row: DtrRow) => {
+        if (row.is_locked_by_payroll) {
+            message.warning('This row is locked by a finalized payroll period. Please ask admin for correction.');
+            return;
+        }
+
+        if (row.status !== 'missed') {
+            message.warning('Only missed rows can be edited.');
+            return;
+        }
+
         if (!row.can_edit || row.date === today_date) {
-            message.warning('Only past rows up to yesterday can be edited.');
+            message.warning('Only missed rows outside finalized payroll periods can be edited.');
             return;
         }
 
@@ -351,33 +397,84 @@ export default function DtrShow({
             render: (hours: number) => hours.toFixed(2),
         },
         {
-            title: 'Status',
+            title: 'Row State',
             dataIndex: 'status',
             key: 'status',
             width: 120,
-            render: (status: RowStatus) => status.replace('_', ' ').toUpperCase(),
+            render: (status: RowStatus, row: DtrRow) => (
+                <Space size={4} wrap>
+                    <Tag color={rowStateColor(status)}>{rowStateLabel(status)}</Tag>
+                    {row.is_locked_by_payroll && <Tag color="red">LOCKED</Tag>}
+                </Space>
+            ),
+        },
+        {
+            title: 'Attendance Statuses',
+            key: 'attendance_statuses',
+            width: 260,
+            render: (_: any, row: DtrRow) => (
+                <Space size={4} wrap>
+                    {row.attendance_statuses.length === 0 ? (
+                        <Tag>-</Tag>
+                    ) : (
+                        row.attendance_statuses.map((status) => (
+                            <Tag key={`${row.id}-${status}`} color={attendanceStatusColor(status)}>
+                                {status}
+                            </Tag>
+                        ))
+                    )}
+                </Space>
+            ),
+        },
+        {
+            title: 'Warnings',
+            key: 'warnings',
+            width: 220,
+            render: (_: any, row: DtrRow) => (
+                <Space size={4} wrap>
+                    {row.warnings.length === 0 ? (
+                        <Tag color="green">None</Tag>
+                    ) : (
+                        row.warnings.map((warning) => (
+                            <Tag key={`${row.id}-warning-${warning}`} color="red">
+                                {warning}
+                            </Tag>
+                        ))
+                    )}
+                </Space>
+            ),
         },
         {
             title: 'Actions',
             key: 'actions',
             width: 170,
             render: (_: any, row: DtrRow) => {
-                const canMarkLeave = row.can_edit && !row.time_in && !row.time_out && row.date < today_date;
+                const canMarkLeave = row.can_edit
+                    && !row.is_locked_by_payroll
+                    && !row.time_in
+                    && !row.time_out
+                    && row.date < today_date
+                    && !['pending', 'approved', 'rejected'].includes(String(row.leave_request_status || ''));
+                const requestLabel = isIntern ? 'Absence Request' : 'Leave';
                 return (
-                    <Space>
+                    <Space wrap size={[6, 6]}>
+                        {row.is_locked_by_payroll && <Tag color="red">LOCKED</Tag>}
                         <Button
                             type="text"
                             size="small"
                             icon={<EditOutlined />}
                             onClick={() => handleEditRow(row)}
-                            disabled={!row.can_edit || row.date === today_date}
                         />
                         <Button
                             size="small"
                             onClick={() => handleLeave(row)}
                             disabled={!canMarkLeave}
                         >
-                            Leave
+                            {row.leave_request_status === 'pending'
+                                ? 'Request Pending'
+                                : row.leave_request_status === 'rejected'
+                                    ? 'Request Rejected'
+                                    : requestLabel}
                         </Button>
                     </Space>
                 );
@@ -400,101 +497,142 @@ export default function DtrShow({
             `}</style>
 
             <div className="screen-only">
-                <div className="mb-4 flex items-center justify-between">
-                    <Link href={route('dtr.index', { tab: '2' })}>
-                        <Button icon={<ArrowLeftOutlined />}>Back</Button>
-                    </Link>
-                    <Space wrap>
-                        <Select
-                            value={printRange}
-                            onChange={(value) => setPrintRange(value)}
-                            style={{ width: 180 }}
-                            options={[
-                                { label: 'Print First 15', value: 'first_15' },
-                                { label: 'Print Last 15', value: 'last_15' },
-                                { label: 'Print Whole Month', value: 'whole_month' },
-                            ]}
+                <PageHeader
+                    title={`${month.monthName} DTR`}
+                    actions={(
+                        <Space wrap>
+                            <Link href={route('dtr.index', { tab: '2' })}>
+                                <Button icon={<ArrowLeftOutlined />}>Back</Button>
+                            </Link>
+                            <Select
+                                value={printRange}
+                                onChange={(value) => setPrintRange(value)}
+                                style={{ width: 180 }}
+                                options={[
+                                    { label: 'Print First 15', value: 'first_15' },
+                                    { label: 'Print Last 15', value: 'last_15' },
+                                    { label: 'Print Whole Month', value: 'whole_month' },
+                                ]}
+                            />
+                            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+                                Print
+                            </Button>
+                        </Space>
+                    )}
+                />
+
+                <div className={`mb-6 grid grid-cols-1 gap-3 ${isIntern ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                    <MetricCard label="Total Hours Logged" value={`${total_hours.toFixed(2)} hrs`} />
+                    {isIntern && <MetricCard label="Required Hours" value={`${required_hours} hrs`} />}
+                    {isIntern && <MetricCard label="Remaining Hours" value={`${remaining_hours.toFixed(2)} hrs`} />}
+                    {!isIntern && (
+                        <MetricCard
+                            label="Paid Leave Balance"
+                            value={`${Number(user?.current_paid_leave_balance ?? 0).toFixed(2)} day(s)`}
+                            helper={<span className="text-xs text-slate-500">Initial: {Number(user?.initial_paid_leave_days ?? 0).toFixed(2)} day(s)</span>}
                         />
-                        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-                            Print
-                        </Button>
-                    </Space>
+                    )}
+                    <MetricCard
+                        label="Progress"
+                        value={`${Math.min(100, Number(progressPercentage.toFixed(1)))}%`}
+                        helper={(
+                            <Progress
+                                percent={Math.min(100, Number(progressPercentage.toFixed(10)))}
+                                showInfo={false}
+                                size="small"
+                            />
+                        )}
+                    />
                 </div>
 
-                <Card title={<h1 className="text-2xl font-bold">{month.monthName} DTR</h1>} className="mb-6">
-                    <Row gutter={16} className="mb-6">
-                        <Col xs={24} sm={8}>
-                            <Statistic title="Total Hours Logged" value={total_hours.toFixed(2)} suffix="hours" />
-                        </Col>
-                        {isIntern && (
-                            <>
-                                <Col xs={24} sm={8}>
-                                    <Statistic title="Required Hours" value={required_hours} suffix="hours" />
-                                </Col>
-                                <Col xs={24} sm={8}>
-                                    <Statistic title="Remaining Hours" value={remaining_hours.toFixed(2)} suffix="hours" />
-                                </Col>
-                            </>
-                        )}
-                    </Row>
-
-                    {isIntern && (
-                        <div className="mb-6">
-                            <p className="mb-2">Progress: {progressPercentage.toFixed(1)}%</p>
-                            <Progress percent={Math.min(100, Number(progressPercentage.toFixed(10)))} />
+                {todayRow && (
+                    <Card size="small" className="mb-4" title={`Today (${dayjs(todayRow.date).format('YYYY-MM-DD')})`}>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <Space wrap size={[12, 12]}>
+                                <Button
+                                    type="primary"
+                                    onClick={handleClockIn}
+                                    disabled={!!todayRow.time_in}
+                                >
+                                    Clock In
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    onClick={handleClockOut}
+                                    disabled={!todayRow.time_in || !!todayRow.time_out}
+                                >
+                                    Clock Out
+                                </Button>
+                            </Space>
+                            <Space wrap size={[12, 12]} className="lg:justify-end">
+                                <span className="text-sm text-slate-600">Break Duration</span>
+                                <Select
+                                    value={breakChoice}
+                                    onChange={setBreakChoice}
+                                    style={{ width: 140 }}
+                                    options={BREAK_OPTIONS}
+                                    disabled={todayRow.on_break}
+                                />
+                                <Button
+                                    onClick={handleStartBreak}
+                                    disabled={!todayRow.time_in || !!todayRow.time_out || todayRow.on_break}
+                                >
+                                    Start Break
+                                </Button>
+                                <Button
+                                    onClick={handleFinishBreak}
+                                    disabled={!todayRow.on_break}
+                                >
+                                    Finish Break
+                                </Button>
+                            </Space>
                         </div>
-                    )}
-
-                    {todayRow && (
-                        <Card size="small" className="mb-4" title={`Today (${dayjs(todayRow.date).format('YYYY-MM-DD')})`}>
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                <Space wrap size={[12, 12]}>
-                                    <Button
-                                        type="primary"
-                                        onClick={handleClockIn}
-                                        disabled={!!todayRow.time_in}
-                                    >
-                                        Clock In
-                                    </Button>
-                                    <Button
-                                        type="primary"
-                                        onClick={handleClockOut}
-                                        disabled={!todayRow.time_in || !!todayRow.time_out}
-                                    >
-                                        Clock Out
-                                    </Button>
-                                </Space>
-                                <Space wrap size={[12, 12]} className="lg:justify-end">
-                                    <span className="text-sm text-slate-600">Break Duration</span>
-                                    <Select
-                                        value={breakChoice}
-                                        onChange={setBreakChoice}
-                                        style={{ width: 140 }}
-                                        options={BREAK_OPTIONS}
-                                        disabled={todayRow.on_break}
-                                    />
-                                    <Button
-                                        onClick={handleStartBreak}
-                                        disabled={!todayRow.time_in || !!todayRow.time_out || todayRow.on_break}
-                                    >
-                                        Start Break
-                                    </Button>
-                                    <Button
-                                        onClick={handleFinishBreak}
-                                        disabled={!todayRow.on_break}
-                                    >
-                                        Finish Break
-                                    </Button>
-                                </Space>
-                            </div>
-                            {todayRow.on_break && (
-                                <div className="mt-3 text-sm text-amber-600">
-                                    Break running: {breakCountdownSec !== null ? `${formatCountdown(breakCountdownSec)} remaining` : '...'}
-                                </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Tag color={rowStateColor(todayRow.status)}>Row State: {rowStateLabel(todayRow.status)}</Tag>
+                            {todayRow.leave_request_status === 'pending' && (
+                                <Tag color="gold">
+                                    {todayRow.leave_request_type === 'intern_absence' ? 'Absence Request' : 'Leave Request'}: PENDING
+                                </Tag>
                             )}
-                        </Card>
-                    )}
+                            {todayRow.leave_request_status === 'approved' && (
+                                <Tag color="green">
+                                    {todayRow.leave_request_type === 'intern_absence' ? 'Absence Request' : 'Leave Request'}: APPROVED
+                                </Tag>
+                            )}
+                            {todayRow.leave_request_status === 'rejected' && (
+                                <Tag color="red">
+                                    {todayRow.leave_request_type === 'intern_absence' ? 'Absence Request' : 'Leave Request'}: REJECTED
+                                </Tag>
+                            )}
+                            {todayRow.leave_request_type === 'leave' && todayRow.leave_request_status && (
+                                <Tag color={todayRow.leave_request_is_paid ? 'green' : 'default'}>
+                                    {todayRow.leave_request_is_paid ? 'PAID LEAVE' : 'UNPAID LEAVE'}
+                                </Tag>
+                            )}
+                            {todayRow.attendance_statuses.length === 0 ? (
+                                <Tag>-</Tag>
+                            ) : (
+                                todayRow.attendance_statuses.map((status) => (
+                                    <Tag key={`today-show-${todayRow.id}-${status}`} color={attendanceStatusColor(status)}>
+                                        {status}
+                                    </Tag>
+                                ))
+                            )}
+                            {todayRow.warnings.map((warning) => (
+                                <Tag key={`today-warning-${todayRow.id}-${warning}`} color="red">
+                                    {warning}
+                                </Tag>
+                            ))}
+                        </div>
+                        {todayRow.on_break && (
+                            <div className="mt-3 text-sm text-amber-600">
+                                Break running: {breakCountdownSec !== null ? `${formatCountdown(breakCountdownSec)} remaining` : '...'}
+                            </div>
+                        )}
+                    </Card>
+                )}
 
+                <TableCard>
                     {initialRows.length === 0 ? (
                         <Empty description="No attendance records for this month" />
                     ) : (
@@ -507,7 +645,7 @@ export default function DtrShow({
                             size="small"
                         />
                     )}
-                </Card>
+                </TableCard>
 
                 <Modal
                     title="Edit Attendance Record"
@@ -562,13 +700,15 @@ export default function DtrShow({
                     >
                         <colgroup>
                             <col style={{ width: '6%' }} />
-                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '14%' }} />
+                            <col style={{ width: '12%' }} />
                             <col style={{ width: '10%' }} />
                             <col style={{ width: '12%' }} />
                             <col style={{ width: '12%' }} />
                             <col style={{ width: '9%' }} />
                             <col style={{ width: '10%' }} />
-                            <col style={{ width: '12%' }} />
+                            <col style={{ width: '11%' }} />
+                            <col style={{ width: '15%' }} />
                         </colgroup>
                         <thead>
                             <tr>
@@ -579,7 +719,9 @@ export default function DtrShow({
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>OUT</th>
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Break</th>
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Total</th>
-                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Status</th>
+                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Row State</th>
+                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Attendance Statuses</th>
+                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Warnings</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -592,7 +734,9 @@ export default function DtrShow({
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{formatDisplayTime(row.time_out)}</td>
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.break_minutes}</td>
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.total_hours.toFixed(2)}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.status}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{rowStateLabel(row.status)}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.attendance_statuses.join(', ') || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.warnings.join(', ') || '-'}</td>
                                 </tr>
                             ))}
                         </tbody>

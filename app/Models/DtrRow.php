@@ -32,6 +32,11 @@ class DtrRow extends Model
         return $this->belongsTo(DtrMonth::class, 'dtr_month_id');
     }
 
+    public function leaveRequest()
+    {
+        return $this->hasOne(LeaveRequest::class);
+    }
+
     /**
      * Calculate total hours from time_in and time_out
      */

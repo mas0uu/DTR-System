@@ -15,6 +15,8 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isIntern = $this->user()?->employee_type === 'intern';
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'student_name' => ['nullable', 'string', 'max:255'],
@@ -33,7 +35,7 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
             'school' => ['nullable', 'string', 'max:255'],
-            'required_hours' => ['nullable', 'integer', 'min:1'],
+            'required_hours' => ['nullable', 'integer', $isIntern ? 'min:1' : 'min:0'],
             'company' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'supervisor_name' => ['nullable', 'string', 'max:255'],

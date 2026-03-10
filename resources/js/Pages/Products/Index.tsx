@@ -170,7 +170,6 @@ export default function Index({ products }: ProductsPageProps) {
                     columns={columns}
                     dataSource={products.data}
                     rowKey="id"
-                    scroll={{ x: 960 }}
                     pagination={{
                         current: products.current_page,
                         pageSize: products.per_page,

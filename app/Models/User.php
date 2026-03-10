@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -30,10 +29,27 @@ class User extends Authenticatable implements MustVerifyEmail
         'supervisor_name',
         'supervisor_position',
         'employee_type',
+        'intern_compensation_enabled',
         'starting_date',
         'working_days',
         'work_time_in',
         'work_time_out',
+        'default_break_minutes',
+        'salary_type',
+        'salary_amount',
+        'initial_paid_leave_days',
+        'current_paid_leave_balance',
+        'leave_reset_month',
+        'leave_reset_day',
+        'last_leave_refresh_year',
+        'profile_photo_path',
+        'is_admin',
+        'employment_status',
+        'deactivated_at',
+        'deactivated_by',
+        'archived_at',
+        'archived_by',
+        'status_reason',
     ];
 
     /**
@@ -44,6 +60,15 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'profile_photo_url',
     ];
 
     /**
@@ -58,6 +83,17 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'starting_date' => 'date',
             'working_days' => 'array',
+            'default_break_minutes' => 'integer',
+            'salary_amount' => 'decimal:2',
+            'initial_paid_leave_days' => 'decimal:2',
+            'current_paid_leave_balance' => 'decimal:2',
+            'leave_reset_month' => 'integer',
+            'leave_reset_day' => 'integer',
+            'last_leave_refresh_year' => 'integer',
+            'is_admin' => 'boolean',
+            'intern_compensation_enabled' => 'boolean',
+            'deactivated_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -67,5 +103,63 @@ class User extends Authenticatable implements MustVerifyEmail
     public function dtrMonths()
     {
         return $this->hasMany(DtrMonth::class);
+    }
+
+    public function payrollRecords()
+    {
+        return $this->hasMany(PayrollRecord::class);
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+
+    public function reviewedLeaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class, 'reviewed_by');
+    }
+
+    public function createdHolidays()
+    {
+        return $this->hasMany(Holiday::class, 'created_by');
+    }
+
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class, 'actor_id');
+    }
+
+    public function leaveBalanceRefreshLogs()
+    {
+        return $this->hasMany(LeaveBalanceRefreshLog::class);
+    }
+
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->employment_status === 'active';
+    }
+
+    public function isPayrollEligible(): bool
+    {
+        if ($this->employee_type !== 'intern') {
+            return true;
+        }
+
+        return (bool) $this->intern_compensation_enabled;
+    }
+
+    public function isPaidLeaveEligible(): bool
+    {
+        return $this->employee_type === 'regular';
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        if (! $this->profile_photo_path) {
+            return null;
+        }
+
+        return '/storage/'.$this->profile_photo_path;
     }
 }

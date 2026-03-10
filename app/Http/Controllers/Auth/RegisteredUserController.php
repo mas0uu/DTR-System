@@ -7,7 +7,6 @@ use App\Models\DtrMonth;
 use App\Models\DtrRow;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -73,6 +72,18 @@ class RegisteredUserController extends Controller
             'working_days.*' => 'integer|between:0,6',
             'work_time_in' => 'required|date_format:H:i',
             'work_time_out' => 'required|date_format:H:i|after:work_time_in',
+            'default_break_minutes' => 'nullable|integer|in:5,10,15,30,45,60',
+            'salary_type' => [
+                'nullable',
+                'in:monthly,daily,hourly',
+                Rule::requiredIf(fn () => $request->input('employee_type') === 'regular'),
+            ],
+            'salary_amount' => [
+                'nullable',
+                'numeric',
+                'min:0.01',
+                Rule::requiredIf(fn () => $request->input('employee_type') === 'regular'),
+            ],
         ]);
 
         $user = User::create([
@@ -87,20 +98,27 @@ class RegisteredUserController extends Controller
             'supervisor_name' => $request->supervisor_name,
             'supervisor_position' => $request->supervisor_position,
             'employee_type' => $request->employee_type,
+            'intern_compensation_enabled' => $request->employee_type === 'regular',
             'starting_date' => $request->starting_date,
             'working_days' => $request->working_days,
             'work_time_in' => $request->work_time_in,
             'work_time_out' => $request->work_time_out,
+            'default_break_minutes' => (int) $request->input('default_break_minutes', 60),
+            'salary_type' => $request->employee_type === 'regular' ? $request->salary_type : null,
+            'salary_amount' => $request->employee_type === 'regular' ? $request->salary_amount : null,
+            'initial_paid_leave_days' => 0,
+            'current_paid_leave_balance' => 0,
+            'leave_reset_month' => 1,
+            'leave_reset_day' => 1,
+            'employment_status' => 'active',
             'password' => Hash::make($request->password),
         ]);
 
         $this->generateDtrRowsFromStartDate($user);
 
-        event(new Registered($user));
-
         Auth::login($user);
 
-        return redirect(route('verification.notice'));
+        return redirect(route('dashboard'));
     }
 
     private function generateDtrRowsFromStartDate(User $user): void

@@ -2,17 +2,42 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
-import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { PropsWithChildren, ReactNode, useEffect, useMemo, useState } from 'react';
 
 export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const user = usePage().props.auth.user;
+    const displayName = user.student_name || user.name || 'User';
+    const avatarInitials = useMemo(() => {
+        return displayName
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part: string) => part[0]?.toUpperCase() ?? '')
+            .join('') || 'U';
+    }, [displayName]);
+    const profilePhotoSrc = useMemo(() => {
+        if (!user.profile_photo_url) {
+            return null;
+        }
+
+        const separator = user.profile_photo_url.includes('?') ? '&' : '?';
+        const cacheKey = user.profile_photo_path ?? user.profile_photo_url;
+
+        return `${user.profile_photo_url}${separator}v=${encodeURIComponent(cacheKey)}`;
+    }, [user.profile_photo_path, user.profile_photo_url]);
+    const isAdmin = !!user.is_admin;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+    const [avatarImageError, setAvatarImageError] = useState(false);
+
+    useEffect(() => {
+        setAvatarImageError(false);
+    }, [profilePhotoSrc]);
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -33,6 +58,14 @@ export default function Authenticated({
                                 >
                                     DTR Records
                                 </NavLink>
+                                {isAdmin && (
+                                    <NavLink
+                                        href={route('admin.employees.create')}
+                                        active={route().current('admin.employees.*')}
+                                    >
+                                        Create Employee
+                                    </NavLink>
+                                )}
                             </div>
                         </div>
 
@@ -45,7 +78,19 @@ export default function Authenticated({
                                                 type="button"
                                                 className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-slate-500 transition duration-150 ease-in-out hover:text-slate-700 focus:outline-none"
                                             >
-                                                {user.name}
+                                                <span className="me-2 inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-xs font-semibold text-white">
+                                                    {profilePhotoSrc && !avatarImageError ? (
+                                                        <img
+                                                            src={profilePhotoSrc}
+                                                            alt={`${displayName} profile photo`}
+                                                            className="h-full w-full object-cover"
+                                                            onError={() => setAvatarImageError(true)}
+                                                        />
+                                                    ) : (
+                                                        avatarInitials
+                                                    )}
+                                                </span>
+                                                {displayName}
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
@@ -69,13 +114,13 @@ export default function Authenticated({
                                         >
                                             Profile
                                         </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
+                                        <button
+                                            type="button"
+                                            onClick={() => router.post(route('logout'))}
+                                            className="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800"
                                         >
                                             Log Out
-                                        </Dropdown.Link>
+                                        </button>
                                     </Dropdown.Content>
                                 </Dropdown>
                             </div>
@@ -137,12 +182,20 @@ export default function Authenticated({
                         >
                             DTR Records
                         </ResponsiveNavLink>
+                        {isAdmin && (
+                            <ResponsiveNavLink
+                                href={route('admin.employees.create')}
+                                active={route().current('admin.employees.*')}
+                            >
+                                Create Employee
+                            </ResponsiveNavLink>
+                        )}
                     </div>
 
                     <div className="border-t border-slate-200 pb-1 pt-4">
                         <div className="px-4">
                             <div className="text-base font-medium text-slate-800">
-                                {user.name}
+                                {displayName}
                             </div>
                             <div className="text-sm font-medium text-slate-500">
                                 {user.email}
@@ -153,13 +206,13 @@ export default function Authenticated({
                             <ResponsiveNavLink href={route('profile.edit')}>
                                 Profile
                             </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
+                            <button
+                                type="button"
+                                onClick={() => router.post(route('logout'))}
+                                className="flex w-full items-start border-l-4 border-transparent py-2 pe-4 ps-3 text-base font-medium text-gray-600 transition duration-150 ease-in-out hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800 focus:border-gray-300 focus:bg-gray-50 focus:text-gray-800 focus:outline-none dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:border-gray-600 dark:focus:bg-gray-700 dark:focus:text-gray-200"
                             >
                                 Log Out
-                            </ResponsiveNavLink>
+                            </button>
                         </div>
                     </div>
                 </div>

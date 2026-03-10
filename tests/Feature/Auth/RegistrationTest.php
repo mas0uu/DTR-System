@@ -38,17 +38,21 @@ class RegistrationTest extends TestCase
             'working_days' => [1, 2, 3, 4, 5],
             'work_time_in' => '09:00',
             'work_time_out' => '18:00',
+            'salary_type' => 'monthly',
+            'salary_amount' => 50000,
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('verification.notice'));
+        $response->assertRedirect(route('dashboard'));
 
         $this->assertDatabaseHas('users', [
             'email' => 'test@example.com',
             'employee_type' => 'intern',
             'starting_date' => '2026-03-01',
+            'salary_type' => 'monthly',
+            'salary_amount' => 50000,
         ]);
 
         $userId = auth()->id();
@@ -62,15 +66,15 @@ class RegistrationTest extends TestCase
         $this->assertNotNull($month);
 
         $rows = DtrRow::where('dtr_month_id', $month->id)->orderBy('date')->get();
-        $this->assertCount(3, $rows);
-        $this->assertSame('2026-03-01', $rows[0]->date->format('Y-m-d'));
+        $this->assertCount(2, $rows);
+        $this->assertSame('2026-03-02', $rows[0]->date->format('Y-m-d'));
         $this->assertSame('draft', $rows[0]->status);
         $this->assertNull($rows[0]->time_in);
         $this->assertNull($rows[0]->time_out);
-        $this->assertSame('2026-03-02', $rows[1]->date->format('Y-m-d'));
-        $this->assertSame('finished', $rows[1]->status);
-        $this->assertNotNull($rows[1]->time_in);
-        $this->assertNotNull($rows[1]->time_out);
+        $this->assertSame('2026-03-03', $rows[1]->date->format('Y-m-d'));
+        $this->assertSame('draft', $rows[1]->status);
+        $this->assertNull($rows[1]->time_in);
+        $this->assertNull($rows[1]->time_out);
 
         Carbon::setTestNow();
     }

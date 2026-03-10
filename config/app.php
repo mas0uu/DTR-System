@@ -69,6 +69,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | DTR Grace Minutes
+    |--------------------------------------------------------------------------
+    |
+    | Additional minutes after scheduled shift start before a user is marked
+    | as late during clock-in.
+    |
+    */
+
+    'dtr_grace_minutes' => (int) env('DTR_GRACE_MINUTES', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

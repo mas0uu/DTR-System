@@ -36,8 +36,12 @@ export default function Register() {
         working_days: [1, 2, 3, 4, 5] as number[],
         work_time_in: '09:00',
         work_time_out: '18:00',
+        default_break_minutes: 60,
+        salary_type: '',
+        salary_amount: '',
     });
     const isIntern = data.employee_type === 'intern';
+    const isRegular = data.employee_type === 'regular';
     const hasSelectedType = data.employee_type === 'intern' || data.employee_type === 'regular';
 
     const submit: FormEventHandler = (e) => {
@@ -76,7 +80,13 @@ export default function Register() {
                                         id="employee_type"
                                         className="mt-1 block w-full"
                                         value={data.employee_type}
-                                        onChange={(value) => setData('employee_type', value)}
+                                        onChange={(value) => {
+                                            setData('employee_type', value);
+                                            if (value === 'intern') {
+                                                setData('salary_type', '');
+                                                setData('salary_amount', '');
+                                            }
+                                        }}
                                         placeholder="Select employee type first"
                                         options={[
                                             { label: 'Intern', value: 'intern' },
@@ -343,6 +353,75 @@ export default function Register() {
                                         </div>
                                     </Col>
                                 </Row>
+
+                                <Row gutter={16} className="mt-4">
+                                    <Col xs={24} sm={12}>
+                                        <div>
+                                            <InputLabel htmlFor="default_break_minutes" value="Default Break Minutes" />
+                                            <Select
+                                                id="default_break_minutes"
+                                                className="mt-1 block w-full"
+                                                value={data.default_break_minutes}
+                                                onChange={(value) => setData('default_break_minutes', value)}
+                                                options={[
+                                                    { label: '5 mins', value: 5 },
+                                                    { label: '10 mins', value: 10 },
+                                                    { label: '15 mins', value: 15 },
+                                                    { label: '30 mins', value: 30 },
+                                                    { label: '45 mins', value: 45 },
+                                                    { label: '60 mins', value: 60 },
+                                                ]}
+                                            />
+                                            <InputError message={errors.default_break_minutes} className="mt-2" />
+                                        </div>
+                                    </Col>
+                                </Row>
+
+                                {isRegular && (
+                                    <Row gutter={16} className="mt-4">
+                                        <Col xs={24} sm={12}>
+                                            <div>
+                                                <InputLabel htmlFor="salary_type" value="Salary Type" />
+                                                <Select
+                                                    id="salary_type"
+                                                    className="mt-1 block w-full"
+                                                    value={data.salary_type}
+                                                    onChange={(value) => setData('salary_type', value)}
+                                                    placeholder="Select salary type"
+                                                    options={[
+                                                        { label: 'Monthly Salary', value: 'monthly' },
+                                                        { label: 'Daily Salary', value: 'daily' },
+                                                        { label: 'Hourly Salary', value: 'hourly' },
+                                                    ]}
+                                                />
+                                                <InputError message={errors.salary_type} className="mt-2" />
+                                            </div>
+                                        </Col>
+                                        <Col xs={24} sm={12}>
+                                            <div>
+                                                <InputLabel htmlFor="salary_amount" value="Salary Amount" />
+                                                <TextInput
+                                                    id="salary_amount"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    name="salary_amount"
+                                                    value={data.salary_amount}
+                                                    className="mt-1 block w-full"
+                                                    onChange={(e) => setData('salary_amount', e.target.value)}
+                                                    required={isRegular}
+                                                />
+                                                <InputError message={errors.salary_amount} className="mt-2" />
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                )}
+
+                                {isIntern && (
+                                    <p className="mt-4 text-sm text-gray-600">
+                                        Payroll setup for interns is handled by admin when compensation is enabled.
+                                    </p>
+                                )}
                             </div>
 
                             <Divider />

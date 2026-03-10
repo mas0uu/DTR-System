@@ -45,7 +45,7 @@ export default function Login({
             >
                 <div className="mb-6">
                     <Title level={3} className="brand-title !mb-1 text-center !text-slate-900">
-                        Welcome Back
+                        Welcome
                     </Title>
                     <Paragraph className="!mb-0 text-center !text-slate-600">
                         Sign in to continue managing your internship time records.
@@ -58,7 +58,7 @@ export default function Login({
 
                 <form onSubmit={submit}>
                     <div className="mb-4">
-                        <InputLabel htmlFor="credential" value="Student Number or Email" />
+                        <InputLabel htmlFor="credential" value="Email or Student Number" />
 
                         <TextInput
                             id="credential"
@@ -66,7 +66,7 @@ export default function Login({
                             name="credential"
                             value={data.credential}
                             onChange={(e) => setData('credential', e.target.value)}
-                            placeholder="Enter your student number or email"
+                            placeholder="Enter your email or student number"
                             className="mt-1 block w-full"
                             autoFocus
                         />
@@ -114,18 +114,6 @@ export default function Login({
                         </PrimaryButton>
                     </div>
                 </form>
-
-                <div className="mt-4 text-center">
-                    <p className="text-sm text-slate-600">
-                        Don't have an account?{' '}
-                        <Link
-                            href={route('register')}
-                            className="font-semibold text-blue-700 hover:text-blue-900"
-                        >
-                            Register here
-                        </Link>
-                    </p>
-                </div>
             </Card>
         </GuestLayout>
     );
