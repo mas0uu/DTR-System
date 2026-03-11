@@ -34,7 +34,7 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
         $employmentStatus = $user?->employment_status ?? 'active';
-        if ($user && ! $user->is_admin && $employmentStatus !== 'active') {
+        if ($user && ! $user->isAdmin() && $employmentStatus !== 'active') {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -46,7 +46,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        $fallbackRoute = $user?->is_admin
+        $fallbackRoute = $user?->isAdmin()
             ? route('admin.employees.index', absolute: false)
             : route('dtr.index', absolute: false);
 

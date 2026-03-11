@@ -14,19 +14,17 @@ type Props = AppPageProps<{
 export default function CreateEmployee() {
     const flash = usePage<Props>().props.flash;
     const { data, setData, post, processing, errors, reset } = useForm({
-        student_name: '',
-        student_no: '',
+        name: '',
         email: '',
+        role: '' as '' | 'admin' | 'employee' | 'intern',
         password: '',
         password_confirmation: '',
+        student_no: '',
         school: '',
         required_hours: '',
-        company: '',
-        department: '',
         supervisor_name: '',
-        supervisor_position: '',
-        employee_type: '' as '' | 'intern' | 'regular',
-        intern_compensation_enabled: false,
+        company: 'Boilerplate Test',
+        department: '',
         starting_date: '',
         working_days: [1, 2, 3, 4, 5] as number[],
         work_time_in: '09:00',
@@ -42,13 +40,13 @@ export default function CreateEmployee() {
 
     return (
         <>
-            <Head title="Create Employee" />
+            <Head title="Create User" />
             <PageHeader
-                title="Create Employee Account"
-                subtitle="Admin-only employee registration form."
+                title="Create User Account"
+                subtitle="Admin-only account creation form."
                 actions={(
                     <Link href={route('admin.employees.index')}>
-                        <Button>View Employees</Button>
+                        <Button>View Users</Button>
                     </Link>
                 )}
             />
@@ -61,7 +59,7 @@ export default function CreateEmployee() {
                     setData={setData as any}
                     errors={errors as Record<string, string>}
                     processing={processing}
-                    submitLabel="Create Employee"
+                    submitLabel="Create User"
                     onSubmit={(e) => {
                         e.preventDefault();
                         post(route('admin.employees.store'), {
@@ -71,6 +69,7 @@ export default function CreateEmployee() {
                                 setData('work_time_in', '09:00');
                                 setData('work_time_out', '18:00');
                                 setData('default_break_minutes', 60);
+                                setData('company', 'Boilerplate Test');
                             },
                         });
                     }}

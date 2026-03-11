@@ -59,6 +59,16 @@ class PayrollRecord extends Model
         'input_snapshot' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $record): void {
+            $totalSalary = round((float) ($record->total_salary ?? 0), 2);
+            $totalDeductions = round((float) ($record->total_deductions ?? 0), 2);
+
+            $record->net_pay = round($totalSalary - $totalDeductions, 2);
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

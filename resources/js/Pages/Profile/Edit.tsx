@@ -16,9 +16,9 @@ export default function Edit() {
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [removingPhoto, setRemovingPhoto] = useState(false);
     const [photoError, setPhotoError] = useState<string | null>(null);
-    const isAdmin = !!user.is_admin;
-    const roleLabel = isAdmin ? 'Admin' : user.employee_type === 'intern' ? 'Intern' : 'Regular Employee';
-    const roleColor = isAdmin ? 'blue' : user.employee_type === 'intern' ? 'purple' : 'green';
+    const isAdmin = user.role === 'admin' || !!user.is_admin;
+    const roleLabel = isAdmin ? 'Admin' : user.role === 'intern' ? 'Intern' : 'Regular Employee';
+    const roleColor = isAdmin ? 'red' : user.role === 'intern' ? 'green' : 'blue';
     const displayName = user.student_name || user.name || 'User';
     const initials = displayName
         .split(' ')

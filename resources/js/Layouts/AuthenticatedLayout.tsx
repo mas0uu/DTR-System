@@ -29,7 +29,7 @@ export default function Authenticated({
 
         return `${user.profile_photo_url}${separator}v=${encodeURIComponent(cacheKey)}`;
     }, [user.profile_photo_path, user.profile_photo_url]);
-    const isAdmin = !!user.is_admin;
+    const isAdmin = user.role === 'admin' || !!user.is_admin;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -63,7 +63,7 @@ export default function Authenticated({
                                         href={route('admin.employees.create')}
                                         active={route().current('admin.employees.*')}
                                     >
-                                        Create Employee
+                                        Create User
                                     </NavLink>
                                 )}
                             </div>
@@ -187,7 +187,7 @@ export default function Authenticated({
                                 href={route('admin.employees.create')}
                                 active={route().current('admin.employees.*')}
                             >
-                                Create Employee
+                                Create User
                             </ResponsiveNavLink>
                         )}
                     </div>

@@ -20,7 +20,7 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     if (auth()->check()) {
-        return auth()->user()?->is_admin
+        return auth()->user()?->isAdmin()
             ? redirect()->route('admin.employees.index')
             : redirect()->route('dtr.index');
     }
@@ -33,7 +33,7 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return auth()->user()?->is_admin
+    return auth()->user()?->isAdmin()
         ? redirect()->route('admin.employees.index')
         : redirect()->route('dtr.index');
 })->middleware(['auth'])->name('dashboard');
@@ -83,6 +83,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('payroll/generate-all', [AdminPayrollController::class, 'generateAll'])->name('payroll.generate_all');
     Route::patch('payroll/{payrollRecord}/review', [AdminPayrollController::class, 'review'])->name('payroll.review');
     Route::patch('payroll/{payrollRecord}/finalize', [AdminPayrollController::class, 'finalize'])->name('payroll.finalize');
+    Route::delete('payroll/{payrollRecord}', [AdminPayrollController::class, 'destroy'])->name('payroll.destroy');
     Route::get('payroll/{payrollRecord}/payslip/view', [AdminPayrollController::class, 'showPayslip'])->name('payroll.payslip.view');
     Route::get('payroll/{payrollRecord}/payslip/download', [AdminPayrollController::class, 'downloadPayslip'])->name('payroll.payslip.download');
     Route::get('attendance', [AdminAttendanceController::class, 'index'])->name('attendance.index');

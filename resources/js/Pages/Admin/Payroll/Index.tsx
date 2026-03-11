@@ -213,7 +213,7 @@ export default function AdminPayrollIndex() {
                                     employee.employee_type === 'intern' && !employee.intern_compensation_enabled
                                         ? `${employee.name} (${employee.employee_type}) - payroll disabled`
                                         : `${employee.name} (${employee.employee_type})`,
-                                value: employee.id,
+                                value: String(employee.id),
                                 disabled: employee.employee_type === 'intern' && !employee.intern_compensation_enabled,
                             }))}
                         />
@@ -377,7 +377,7 @@ export default function AdminPayrollIndex() {
                         {
                             title: 'Actions',
                             key: 'actions',
-                            width: 360,
+                            width: 430,
                             render: (_, row) => (
                                 <Space wrap>
                                     {row.status === 'generated' && (
@@ -399,6 +399,21 @@ export default function AdminPayrollIndex() {
                                             }}
                                         >
                                             Finalize
+                                        </Button>
+                                    )}
+                                    {row.status !== 'finalized' && (
+                                        <Button
+                                            size="small"
+                                            danger
+                                            onClick={() => {
+                                                const confirmed = window.confirm(
+                                                    `Delete payroll for ${row.employee_name} (${row.pay_period_start} to ${row.pay_period_end})? This cannot be undone.`
+                                                );
+                                                if (!confirmed) return;
+                                                router.delete(route('admin.payroll.destroy', row.id), { preserveScroll: true });
+                                            }}
+                                        >
+                                            Delete
                                         </Button>
                                     )}
                                     {row.status === 'finalized' && (

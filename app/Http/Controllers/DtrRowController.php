@@ -77,9 +77,9 @@ class DtrRowController extends Controller
             ->where('user_id', $request->user()->id)
             ->whereDate('leave_date', $row->date->format('Y-m-d'))
             ->first(['status']);
-        if ($existingLeaveRequest && in_array($existingLeaveRequest->status, ['pending', 'approved', 'rejected'], true)) {
+        if ($existingLeaveRequest && in_array($existingLeaveRequest->status, ['pending', 'approved'], true)) {
             return response()->json([
-                'error' => 'This row is locked because a leave/absence request was already decided for this date.',
+                'error' => 'This row is locked because a leave/absence request is pending or already approved for this date.',
             ], 422);
         }
 
@@ -392,7 +392,7 @@ class DtrRowController extends Controller
             ->where('user_id', $request->user()->id)
             ->whereDate('leave_date', $leaveDate)
             ->first();
-        if ($existing && in_array($existing->status, ['pending', 'approved', 'rejected'], true)) {
+        if ($existing && in_array($existing->status, ['pending', 'approved'], true)) {
             return response()->json(['error' => 'A request already exists for this date.'], 422);
         }
 

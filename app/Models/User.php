@@ -11,6 +11,10 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_EMPLOYEE = 'employee';
+    public const ROLE_INTERN = 'intern';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -43,6 +47,7 @@ class User extends Authenticatable
         'leave_reset_day',
         'last_leave_refresh_year',
         'profile_photo_path',
+        'role',
         'is_admin',
         'employment_status',
         'deactivated_at',
@@ -97,6 +102,30 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $user): void {
+            $role = $user->attributes['role'] ?? null;
+
+            if (! in_array($role, [self::ROLE_ADMIN, self::ROLE_EMPLOYEE, self::ROLE_INTERN], true)) {
+                $role = $user->is_admin
+                    ? self::ROLE_ADMIN
+                    : (($user->employee_type ?? null) === 'intern' ? self::ROLE_INTERN : self::ROLE_EMPLOYEE);
+            }
+
+            $user->attributes['role'] = $role;
+            $user->attributes['is_admin'] = $role === self::ROLE_ADMIN;
+
+            if ($role === self::ROLE_ADMIN) {
+                $user->attributes['employee_type'] = null;
+            } elseif ($role === self::ROLE_INTERN) {
+                $user->attributes['employee_type'] = 'intern';
+            } else {
+                $user->attributes['employee_type'] = 'regular';
+            }
+        });
+    }
+
     /**
      * Get the user's DTR months.
      */
@@ -140,9 +169,18 @@ class User extends Authenticatable
         return $this->employment_status === 'active';
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN || (bool) $this->is_admin;
+    }
+
     public function isPayrollEligible(): bool
     {
-        if ($this->employee_type !== 'intern') {
+        if ($this->isAdmin()) {
+            return false;
+        }
+
+        if ($this->role !== self::ROLE_INTERN) {
             return true;
         }
 
@@ -151,7 +189,7 @@ class User extends Authenticatable
 
     public function isPaidLeaveEligible(): bool
     {
-        return $this->employee_type === 'regular';
+        return $this->role === self::ROLE_EMPLOYEE;
     }
 
     public function getProfilePhotoUrlAttribute(): ?string

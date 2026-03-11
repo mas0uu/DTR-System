@@ -32,7 +32,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
             .map((part: string) => part[0]?.toUpperCase() ?? '')
             .join('') || 'U';
     }, [displayName]);
-    const isAdmin = !!user.is_admin;
+    const isAdmin = user.role === 'admin' || !!user.is_admin;
     const isIntern = user.employee_type === 'intern';
     const canAccessPayroll = !isIntern || !!user.intern_compensation_enabled;
     const [mobileNavOpen, setMobileNavOpen] = useState(false);

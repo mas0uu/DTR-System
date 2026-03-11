@@ -11,6 +11,7 @@ export interface User {
     department?: string | null;
     supervisor_name?: string | null;
     supervisor_position?: string | null;
+    role?: 'admin' | 'employee' | 'intern';
     employee_type?: 'intern' | 'regular' | null;
     intern_compensation_enabled?: boolean;
     starting_date?: string | null;

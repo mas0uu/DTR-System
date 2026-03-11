@@ -6,17 +6,16 @@ import EmployeeForm from './EmployeeForm';
 
 type Employee = {
     id: number;
-    student_name: string;
+    name: string;
     student_no: string | null;
     email: string;
+    role: 'admin' | 'employee' | 'intern';
     school: string | null;
     required_hours: number | null;
     company: string | null;
     department: string | null;
     supervisor_name: string | null;
-    supervisor_position: string | null;
     employee_type: 'intern' | 'regular' | null;
-    intern_compensation_enabled: boolean;
     starting_date: string | null;
     working_days: number[] | null;
     work_time_in: string | null;
@@ -32,9 +31,10 @@ type Employee = {
 
 export default function EditEmployee({ employee }: { employee: Employee }) {
     const { data, setData, patch, processing, errors } = useForm({
-        student_name: employee.student_name || '',
+        name: employee.name || '',
         student_no: employee.student_no || '',
         email: employee.email || '',
+        role: employee.role || '',
         password: '',
         password_confirmation: '',
         school: employee.school || '',
@@ -42,9 +42,6 @@ export default function EditEmployee({ employee }: { employee: Employee }) {
         company: employee.company || '',
         department: employee.department || '',
         supervisor_name: employee.supervisor_name || '',
-        supervisor_position: employee.supervisor_position || '',
-        employee_type: (employee.employee_type || '') as '' | 'intern' | 'regular',
-        intern_compensation_enabled: !!employee.intern_compensation_enabled,
         starting_date: employee.starting_date || '',
         working_days: employee.working_days || [1, 2, 3, 4, 5],
         work_time_in: employee.work_time_in || '09:00',
@@ -60,13 +57,13 @@ export default function EditEmployee({ employee }: { employee: Employee }) {
 
     return (
         <>
-            <Head title="Edit Employee" />
+            <Head title="Edit User" />
             <PageHeader
-                title="Edit Employee"
+                title="Edit User"
                 subtitle={employee.email}
                 actions={(
                     <Link href={route('admin.employees.index')}>
-                        <Button>Back to Employees</Button>
+                        <Button>Back to Users</Button>
                     </Link>
                 )}
             />

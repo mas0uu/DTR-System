@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,8 +30,8 @@ class ProfileController extends Controller
         $user = $request->user();
         $user->fill($request->validated());
 
-        // Regular employees should not persist intern-only fields.
-        if ($user->employee_type === 'regular') {
+        // Non-intern accounts should not persist intern-only fields.
+        if ($user->role !== User::ROLE_INTERN) {
             $user->student_no = null;
             $user->school = null;
             $user->required_hours = 0;

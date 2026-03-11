@@ -107,7 +107,11 @@ class PayrollCalculator
                     $effectiveStart,
                     $scheduledDaysByMonth
                 );
-                $paidHolidayBasePay += $dailyRate;
+                // Monthly salary already covers paid holidays via month proration.
+                // Only daily/hourly employees receive an added paid-holiday base line.
+                if ($salaryType !== 'monthly') {
+                    $paidHolidayBasePay += $dailyRate;
+                }
                 $paidHolidayDays++;
 
                 $isWorked = $row && $row->status === 'finished' && (int) $row->total_minutes > 0;

@@ -272,6 +272,11 @@ export default function DtrShow({
             return;
         }
 
+        if (['pending', 'approved'].includes(String(row.leave_request_status || ''))) {
+            message.warning('This row has a pending/approved leave or absence request and cannot be edited.');
+            return;
+        }
+
         if (row.status !== 'missed') {
             message.warning('Only missed rows can be edited.');
             return;
@@ -454,7 +459,7 @@ export default function DtrShow({
                     && !row.time_in
                     && !row.time_out
                     && row.date < today_date
-                    && !['pending', 'approved', 'rejected'].includes(String(row.leave_request_status || ''));
+                    && !['pending', 'approved'].includes(String(row.leave_request_status || ''));
                 const requestLabel = isIntern ? 'Absence Request' : 'Leave';
                 return (
                     <Space wrap size={[6, 6]}>
@@ -472,6 +477,8 @@ export default function DtrShow({
                         >
                             {row.leave_request_status === 'pending'
                                 ? 'Request Pending'
+                                : row.leave_request_status === 'approved'
+                                    ? 'Request Approved'
                                 : row.leave_request_status === 'rejected'
                                     ? 'Request Rejected'
                                     : requestLabel}

@@ -218,7 +218,8 @@ class DtrMonthController extends Controller
                     && ! $row->time_in
                     && ! $row->time_out
                     && ! $isLockedByPayroll;
-                $hasLockedLeaveRequest = in_array($row->leaveRequest?->status, ['pending', 'approved', 'rejected'], true);
+                // Rejected requests should allow the employee to edit missed attendance.
+                $hasLockedLeaveRequest = in_array($row->leaveRequest?->status, ['pending', 'approved'], true);
 
                 return [
                     'id' => $row->id,

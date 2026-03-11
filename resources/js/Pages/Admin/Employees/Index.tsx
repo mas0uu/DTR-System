@@ -11,6 +11,7 @@ type Employee = {
     id: number;
     name: string;
     email: string;
+    role: 'admin' | 'employee' | 'intern';
     employee_type: 'intern' | 'regular' | null;
     intern_compensation_enabled: boolean;
     department: string | null;
@@ -22,6 +23,8 @@ type Employee = {
     deactivated_at: string | null;
     archived_at: string | null;
     status_reason: string | null;
+    is_self: boolean;
+    can_delete_admin: boolean;
 };
 
 type Props = AppPageProps<{
@@ -33,10 +36,10 @@ type Props = AppPageProps<{
 
 export default function EmployeesIndex() {
     const { employees, flash } = usePage<Props>().props;
-    const [roleFilter, setRoleFilter] = useState<'all' | 'regular' | 'intern'>('all');
+    const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee' | 'intern'>('all');
 
     const filteredEmployees = useMemo(
-        () => (roleFilter === 'all' ? employees : employees.filter((employee) => employee.employee_type === roleFilter)),
+        () => (roleFilter === 'all' ? employees : employees.filter((employee) => employee.role === roleFilter)),
         [employees, roleFilter],
     );
     const activeCount = useMemo(
@@ -51,13 +54,17 @@ export default function EmployeesIndex() {
         () => employees.filter((employee) => employee.employment_status === 'archived').length,
         [employees],
     );
+    const adminCount = useMemo(
+        () => employees.filter((employee) => employee.role === 'admin').length,
+        [employees],
+    );
 
     return (
         <>
-            <Head title="Employees" />
+            <Head title="Users" />
             <PageHeader
-                title="Employees"
-                subtitle="Manage employee lifecycle, compensation setup, and profile records."
+                title="Users"
+                subtitle="Manage admin, employee, and intern accounts from one panel."
                 actions={(
                     <Space>
                         <Link href={route('admin.payroll.index')}>
@@ -67,7 +74,7 @@ export default function EmployeesIndex() {
                             <Button>Leave Queue</Button>
                         </Link>
                         <Link href={route('admin.employees.create')}>
-                            <Button type="primary">Create Employee</Button>
+                            <Button type="primary">Create User</Button>
                         </Link>
                     </Space>
                 )}
@@ -76,14 +83,14 @@ export default function EmployeesIndex() {
             {flash?.success && <Alert type="success" message={flash.success} showIcon className="mb-4" />}
 
             <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
-                <MetricCard label="Total Employees" value={employees.length} />
-                <MetricCard label="Active" value={activeCount} />
-                <MetricCard label="Inactive" value={inactiveCount} />
-                <MetricCard label="Archived" value={archivedCount} />
+                <MetricCard label="Total Users" value={employees.length} />
+                <MetricCard label="Admins" value={adminCount} />
+                <MetricCard label="Active Staff" value={activeCount} />
+                <MetricCard label="Inactive/Archived" value={inactiveCount + archivedCount} />
             </div>
 
             <TableCard
-                title="Employee Directory"
+                title="User Directory"
                 actions={(
                     <Select
                         value={roleFilter}
@@ -91,7 +98,8 @@ export default function EmployeesIndex() {
                         onChange={(value) => setRoleFilter(value)}
                         options={[
                             { label: 'All roles', value: 'all' },
-                            { label: 'Regular', value: 'regular' },
+                            { label: 'Admin', value: 'admin' },
+                            { label: 'Employee', value: 'employee' },
                             { label: 'Intern', value: 'intern' },
                         ]}
                     />
@@ -105,11 +113,19 @@ export default function EmployeesIndex() {
                     columns={[
                         { title: 'Name', dataIndex: 'name', key: 'name', ellipsis: true },
                         {
-                            title: 'Type',
-                            key: 'employee_type',
+                            title: 'Role',
+                            key: 'role',
                             render: (_, row) => (
-                                <Tag color={row.employee_type === 'intern' ? 'gold' : 'blue'}>
-                                    {(row.employee_type || '-').toUpperCase()}
+                                <Tag
+                                    color={
+                                        row.role === 'admin'
+                                            ? 'red'
+                                            : row.role === 'employee'
+                                                ? 'blue'
+                                                : 'green'
+                                    }
+                                >
+                                    {row.role.toUpperCase()}
                                 </Tag>
                             ),
                         },
@@ -117,17 +133,19 @@ export default function EmployeesIndex() {
                             title: 'Status',
                             key: 'employment_status',
                             render: (_, row) => (
-                                <Tag
-                                    color={
-                                        row.employment_status === 'active'
-                                            ? 'green'
-                                            : row.employment_status === 'inactive'
-                                                ? 'orange'
-                                                : 'red'
-                                    }
-                                >
-                                    {row.employment_status.toUpperCase()}
-                                </Tag>
+                                row.role === 'admin' ? <Tag color="processing">SYSTEM ADMIN</Tag> : (
+                                    <Tag
+                                        color={
+                                            row.employment_status === 'active'
+                                                ? 'green'
+                                                : row.employment_status === 'inactive'
+                                                    ? 'orange'
+                                                    : 'red'
+                                        }
+                                    >
+                                        {row.employment_status.toUpperCase()}
+                                    </Tag>
+                                )
                             ),
                         },
                         { title: 'Department', dataIndex: 'department', key: 'department', ellipsis: true },
@@ -136,8 +154,12 @@ export default function EmployeesIndex() {
                             title: 'Salary',
                             key: 'salary',
                             render: (_, row) => {
-                                if (row.employee_type === 'intern' && !row.intern_compensation_enabled) {
-                                    return <Tag color="default">UNPAID INTERN</Tag>;
+                                if (row.role === 'admin') {
+                                    return <Tag color="default">N/A</Tag>;
+                                }
+
+                                if (row.role === 'intern') {
+                                    return <Tag color="green">INTERNSHIP TRACKING</Tag>;
                                 }
 
                                 return `${(row.salary_type || '-').toUpperCase()} / PHP ${Number(row.salary_amount || 0).toFixed(2)}`;
@@ -150,59 +172,80 @@ export default function EmployeesIndex() {
                             render: (_, row) => {
                                 const menuItems: MenuProps['items'] = [
                                     {
-                                        key: 'attendance',
-                                        label: <Link href={route('admin.attendance.show', row.id)}>Attendance</Link>,
-                                    },
-                                    {
                                         key: 'edit',
                                         label: <Link href={route('admin.employees.edit', row.id)}>Edit</Link>,
                                     },
                                 ];
 
-                                if (row.employment_status === 'active') {
-                                    menuItems.push({
-                                        key: 'deactivate',
-                                        danger: true,
-                                        label: (
-                                            <Popconfirm
-                                                title="Deactivate employee?"
-                                                description="Login will be blocked, but records are retained."
-                                                okText="Deactivate"
-                                                okButtonProps={{ danger: true }}
-                                                onConfirm={() => router.patch(route('admin.employees.deactivate', row.id))}
-                                            >
-                                                <span>Deactivate</span>
-                                            </Popconfirm>
-                                        ),
+                                if (row.role !== 'admin') {
+                                    menuItems.unshift({
+                                        key: 'attendance',
+                                        label: <Link href={route('admin.attendance.show', row.id)}>Attendance</Link>,
                                     });
-                                    menuItems.push({
-                                        key: 'archive',
-                                        danger: true,
-                                        label: (
-                                            <Popconfirm
-                                                title="Archive employee?"
-                                                description="Employee will be archived and hidden from active operations."
-                                                okText="Archive"
-                                                okButtonProps={{ danger: true }}
-                                                onConfirm={() => router.patch(route('admin.employees.archive', row.id))}
-                                            >
-                                                <span>Archive</span>
-                                            </Popconfirm>
-                                        ),
-                                    });
+
+                                    if (row.employment_status === 'active') {
+                                        menuItems.push({
+                                            key: 'deactivate',
+                                            danger: true,
+                                            label: (
+                                                <Popconfirm
+                                                    title="Deactivate user?"
+                                                    description="Login will be blocked, but records are retained."
+                                                    okText="Deactivate"
+                                                    okButtonProps={{ danger: true }}
+                                                    onConfirm={() => router.patch(route('admin.employees.deactivate', row.id))}
+                                                >
+                                                    <span>Deactivate</span>
+                                                </Popconfirm>
+                                            ),
+                                        });
+                                        menuItems.push({
+                                            key: 'archive',
+                                            danger: true,
+                                            label: (
+                                                <Popconfirm
+                                                    title="Archive user?"
+                                                    description="User will be archived and hidden from active operations."
+                                                    okText="Archive"
+                                                    okButtonProps={{ danger: true }}
+                                                    onConfirm={() => router.patch(route('admin.employees.archive', row.id))}
+                                                >
+                                                    <span>Archive</span>
+                                                </Popconfirm>
+                                            ),
+                                        });
+                                    } else {
+                                        menuItems.push({
+                                            key: 'reactivate',
+                                            label: (
+                                                <Popconfirm
+                                                    title="Reactivate user?"
+                                                    okText="Reactivate"
+                                                    onConfirm={() => router.patch(route('admin.employees.reactivate', row.id))}
+                                                >
+                                                    <span>Reactivate</span>
+                                                </Popconfirm>
+                                            ),
+                                        });
+                                    }
                                 } else {
-                                    menuItems.push({
-                                        key: 'reactivate',
-                                        label: (
-                                            <Popconfirm
-                                                title="Reactivate employee?"
-                                                okText="Reactivate"
-                                                onConfirm={() => router.patch(route('admin.employees.reactivate', row.id))}
-                                            >
-                                                <span>Reactivate</span>
-                                            </Popconfirm>
-                                        ),
-                                    });
+                                    if (row.can_delete_admin) {
+                                        menuItems.push({
+                                            key: 'delete-admin',
+                                            danger: true,
+                                            label: (
+                                                <Popconfirm
+                                                    title="Delete admin account?"
+                                                    description="This action permanently removes the admin account."
+                                                    okText="Delete"
+                                                    okButtonProps={{ danger: true }}
+                                                    onConfirm={() => router.delete(route('admin.employees.destroy', row.id))}
+                                                >
+                                                    <span>Delete Admin</span>
+                                                </Popconfirm>
+                                            ),
+                                        });
+                                    }
                                 }
 
                                 return (

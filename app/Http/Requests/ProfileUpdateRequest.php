@@ -15,7 +15,7 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $isIntern = $this->user()?->employee_type === 'intern';
+        $isIntern = $this->user()?->role === User::ROLE_INTERN || $this->user()?->employee_type === 'intern';
 
         return [
             'name' => ['required', 'string', 'max:255'],

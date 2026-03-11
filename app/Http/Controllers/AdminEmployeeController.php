@@ -12,22 +12,36 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminEmployeeController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $adminCount = $this->adminCount();
+        $currentAdmin = $request->user();
+
         $employees = User::query()
-            ->where('is_admin', false)
+            ->orderByRaw("
+                CASE
+                    WHEN role = 'admin' THEN 0
+                    WHEN role = 'employee' THEN 1
+                    ELSE 2
+                END
+            ")
             ->orderBy('name')
             ->get()
-            ->map(function (User $employee) {
+            ->map(function (User $employee) use ($currentAdmin, $adminCount) {
+                $isAdmin = $employee->isAdmin();
+                $isSelf = $currentAdmin?->is($employee) ?? false;
+
                 return [
                     'id' => $employee->id,
                     'name' => $employee->name,
                     'email' => $employee->email,
+                    'role' => $employee->role,
                     'employee_type' => $employee->employee_type,
                     'intern_compensation_enabled' => (bool) $employee->intern_compensation_enabled,
                     'department' => $employee->department,
@@ -44,6 +58,8 @@ class AdminEmployeeController extends Controller
                     'deactivated_at' => optional($employee->deactivated_at)?->toDateTimeString(),
                     'archived_at' => optional($employee->archived_at)?->toDateTimeString(),
                     'status_reason' => $employee->status_reason,
+                    'is_self' => $isSelf,
+                    'can_delete_admin' => $isAdmin && ! $isSelf && $adminCount > 1,
                 ];
             });
 
@@ -59,53 +75,54 @@ class AdminEmployeeController extends Controller
 
     public function store(Request $request, AuditLogger $auditLogger): RedirectResponse
     {
-        $validated = $this->validateEmployeePayload($request);
+        $validated = $this->validateUserPayload($request);
+        $user = User::create($this->userAttributes($validated, true));
 
-        $employee = User::create($this->employeeAttributes($validated, true));
+        if (! $user->isAdmin()) {
+            $this->generateDtrRowsFromStartDate($user);
+        }
 
-        $this->generateDtrRowsFromStartDate($employee);
         $auditLogger->log(
             $request->user(),
-            'employee.created',
+            'user.created',
             'user',
-            $employee->id,
+            $user->id,
             null,
-            $employee->only([
+            $user->only([
                 'name',
                 'email',
+                'role',
                 'employee_type',
-                'intern_compensation_enabled',
                 'department',
-                'company',
                 'salary_type',
                 'salary_amount',
+                'initial_paid_leave_days',
+                'required_hours',
                 'employment_status',
             ]),
-            'Created employee account.',
+            'Created user account.',
             $request
         );
 
         return redirect()
             ->route('admin.employees.index')
-            ->with('success', 'Employee account created successfully.');
+            ->with('success', 'User account created successfully.');
     }
 
     public function edit(User $employee): Response
     {
-        abort_if($employee->is_admin, 404);
-
         return Inertia::render('Admin/Employees/Edit', [
             'employee' => [
                 'id' => $employee->id,
-                'student_name' => $employee->student_name ?? $employee->name,
+                'name' => $employee->name,
                 'student_no' => $employee->student_no,
                 'email' => $employee->email,
+                'role' => $employee->role,
                 'school' => $employee->school,
                 'required_hours' => $employee->required_hours,
                 'company' => $employee->company,
                 'department' => $employee->department,
                 'supervisor_name' => $employee->supervisor_name,
-                'supervisor_position' => $employee->supervisor_position,
                 'employee_type' => $employee->employee_type,
                 'intern_compensation_enabled' => (bool) $employee->intern_compensation_enabled,
                 'starting_date' => optional($employee->starting_date)->format('Y-m-d'),
@@ -125,22 +142,21 @@ class AdminEmployeeController extends Controller
 
     public function update(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
-        $validated = $this->validateEmployeePayload($request, $employee);
+        $validated = $this->validateUserPayload($request, $employee);
+        $targetRole = $validated['role'];
+        $this->ensureAdminRoleTransitionIsSafe($request->user(), $employee, $targetRole);
 
         $before = $employee->only([
             'name',
             'email',
-            'student_name',
+            'role',
             'student_no',
             'school',
             'required_hours',
             'company',
             'department',
             'supervisor_name',
-            'supervisor_position',
             'employee_type',
-            'intern_compensation_enabled',
             'starting_date',
             'working_days',
             'work_time_in',
@@ -154,34 +170,62 @@ class AdminEmployeeController extends Controller
             'leave_reset_day',
             'employment_status',
         ]);
-        $employee->fill($this->employeeAttributes($validated, false));
+
+        $employee->fill($this->userAttributes($validated, false, $employee));
         $employee->save();
-        $this->generateDtrRowsFromStartDate($employee);
+
+        if (! $employee->isAdmin()) {
+            $this->generateDtrRowsFromStartDate($employee);
+        }
+
         $auditLogger->log(
             $request->user(),
-            'employee.updated',
+            'user.updated',
             'user',
             $employee->id,
             $before,
             $employee->only(array_keys($before)),
-            'Updated employee profile/settings.',
+            'Updated user account.',
             $request
         );
 
         return redirect()
             ->route('admin.employees.index')
-            ->with('success', 'Employee updated successfully.');
+            ->with('success', 'User updated successfully.');
     }
 
     public function destroy(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        // Legacy endpoint now archives by default to preserve history.
-        return $this->archive($request, $employee, $auditLogger);
+        if (! $employee->isAdmin()) {
+            // Legacy endpoint now archives by default to preserve employee history.
+            return $this->archive($request, $employee, $auditLogger);
+        }
+
+        $this->ensureAdminDeleteIsSafe($request->user(), $employee);
+        $before = $employee->only(['name', 'email', 'role']);
+
+        $employeeId = $employee->id;
+        $employee->delete();
+
+        $auditLogger->log(
+            $request->user(),
+            'user.deleted',
+            'user',
+            $employeeId,
+            $before,
+            null,
+            'Deleted admin account.',
+            $request
+        );
+
+        return redirect()
+            ->route('admin.employees.index')
+            ->with('success', 'Admin account deleted successfully.');
     }
 
     public function deactivate(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
 
         $validated = $request->validate([
             'reason' => 'nullable|string|max:1000',
@@ -213,7 +257,7 @@ class AdminEmployeeController extends Controller
 
     public function archive(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
 
         $validated = $request->validate([
             'reason' => 'nullable|string|max:1000',
@@ -245,7 +289,7 @@ class AdminEmployeeController extends Controller
 
     public function reactivate(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
         $before = $employee->only([
             'employment_status',
             'deactivated_at',
@@ -279,7 +323,7 @@ class AdminEmployeeController extends Controller
             ->with('success', 'Employee reactivated successfully.');
     }
 
-    private function validateEmployeePayload(Request $request, ?User $employee = null): array
+    private function validateUserPayload(Request $request, ?User $employee = null): array
     {
         $employeeId = $employee?->id;
         $passwordRules = $employee
@@ -287,11 +331,16 @@ class AdminEmployeeController extends Controller
             : ['required', 'confirmed', Rules\Password::defaults()];
 
         return $request->validate([
-            'student_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'role' => ['required', Rule::in([
+                User::ROLE_ADMIN,
+                User::ROLE_EMPLOYEE,
+                User::ROLE_INTERN,
+            ])],
             'student_no' => [
                 'nullable',
                 'string',
-                Rule::requiredIf(fn () => $request->input('employee_type') === 'intern'),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_INTERN),
                 Rule::unique(User::class)->ignore($employeeId),
             ],
             'email' => [
@@ -306,52 +355,68 @@ class AdminEmployeeController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                Rule::requiredIf(fn () => $request->input('employee_type') === 'intern'),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_INTERN),
             ],
             'required_hours' => [
                 'nullable',
                 'integer',
                 'min:0',
-                Rule::requiredIf(fn () => $request->input('employee_type') === 'intern'),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_INTERN),
             ],
-            'intern_compensation_enabled' => 'nullable|boolean',
-            'company' => 'required|string|max:255',
-            'department' => 'required|string|max:255',
-            'supervisor_name' => 'required|string|max:255',
-            'supervisor_position' => 'required|string|max:255',
-            'employee_type' => 'required|in:intern,regular',
-            'starting_date' => 'required|date|before_or_equal:today',
-            'working_days' => 'required|array|min:1',
+            'company' => 'nullable|string|max:255',
+            'department' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
+            ],
+            'supervisor_name' => 'nullable|string|max:255',
+            'starting_date' => [
+                'nullable',
+                'date',
+                'before_or_equal:today',
+                Rule::requiredIf(fn () => $request->input('role') !== User::ROLE_ADMIN),
+            ],
+            'working_days' => [
+                'nullable',
+                'array',
+                'min:1',
+                Rule::requiredIf(fn () => $request->input('role') !== User::ROLE_ADMIN),
+            ],
             'working_days.*' => 'integer|between:0,6',
-            'work_time_in' => 'required|date_format:H:i',
-            'work_time_out' => 'required|date_format:H:i|after:work_time_in',
-            'default_break_minutes' => 'required|integer|in:5,10,15,30,45,60',
+            'work_time_in' => [
+                'nullable',
+                'date_format:H:i',
+                Rule::requiredIf(fn () => $request->input('role') !== User::ROLE_ADMIN),
+            ],
+            'work_time_out' => [
+                'nullable',
+                'date_format:H:i',
+                'after:work_time_in',
+                Rule::requiredIf(fn () => $request->input('role') !== User::ROLE_ADMIN),
+            ],
+            'default_break_minutes' => [
+                'nullable',
+                'integer',
+                'in:5,10,15,30,45,60',
+                Rule::requiredIf(fn () => $request->input('role') !== User::ROLE_ADMIN),
+            ],
             'salary_type' => [
                 'nullable',
                 'in:monthly,daily,hourly',
-                Rule::requiredIf(function () use ($request) {
-                    $type = $request->input('employee_type');
-                    $internCompensation = filter_var($request->input('intern_compensation_enabled'), FILTER_VALIDATE_BOOL);
-
-                    return $type === 'regular' || ($type === 'intern' && $internCompensation);
-                }),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
             ],
             'salary_amount' => [
                 'nullable',
                 'numeric',
                 'min:0.01',
-                Rule::requiredIf(function () use ($request) {
-                    $type = $request->input('employee_type');
-                    $internCompensation = filter_var($request->input('intern_compensation_enabled'), FILTER_VALIDATE_BOOL);
-
-                    return $type === 'regular' || ($type === 'intern' && $internCompensation);
-                }),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
             ],
             'initial_paid_leave_days' => [
                 'nullable',
                 'numeric',
                 'min:0',
-                Rule::requiredIf(fn () => $request->input('employee_type') === 'regular'),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
             ],
             'current_paid_leave_balance' => [
                 'nullable',
@@ -363,57 +428,55 @@ class AdminEmployeeController extends Controller
         ]);
     }
 
-    private function employeeAttributes(array $validated, bool $isCreate): array
+    private function userAttributes(array $validated, bool $isCreate, ?User $existing = null): array
     {
-        $isIntern = ($validated['employee_type'] ?? null) === 'intern';
-        $internCompensationEnabled = $isIntern
-            ? (bool) ($validated['intern_compensation_enabled'] ?? false)
-            : true;
+        $role = $validated['role'];
+        $isAdmin = $role === User::ROLE_ADMIN;
+        $isIntern = $role === User::ROLE_INTERN;
+        $isEmployee = $role === User::ROLE_EMPLOYEE;
+        $initialLeave = round((float) ($validated['initial_paid_leave_days'] ?? 0), 2);
+        $currentLeave = round(
+            (float) (
+                array_key_exists('current_paid_leave_balance', $validated)
+                    ? ($validated['current_paid_leave_balance'] !== null && $validated['current_paid_leave_balance'] !== ''
+                        ? $validated['current_paid_leave_balance']
+                        : $initialLeave)
+                    : $initialLeave
+            ),
+            2
+        );
 
         $attributes = [
-            'name' => $validated['student_name'],
+            'name' => $validated['name'],
             'email' => $validated['email'],
-            'student_name' => $validated['student_name'],
+            'student_name' => $isIntern ? $validated['name'] : null,
             'student_no' => $isIntern ? ($validated['student_no'] ?? null) : null,
             'school' => $isIntern ? ($validated['school'] ?? null) : null,
-            'required_hours' => $isIntern ? ($validated['required_hours'] ?? 0) : 0,
-            'company' => $validated['company'],
-            'department' => $validated['department'],
-            'supervisor_name' => $validated['supervisor_name'],
-            'supervisor_position' => $validated['supervisor_position'],
-            'employee_type' => $validated['employee_type'],
-            'intern_compensation_enabled' => $internCompensationEnabled,
-            'starting_date' => $validated['starting_date'],
-            'working_days' => $validated['working_days'],
-            'work_time_in' => $validated['work_time_in'],
-            'work_time_out' => $validated['work_time_out'],
+            'required_hours' => $isIntern ? (int) ($validated['required_hours'] ?? 0) : 0,
+            'company' => $isAdmin ? null : ($validated['company'] ?? null),
+            'department' => $isEmployee ? ($validated['department'] ?? null) : null,
+            'supervisor_name' => $isIntern ? ($validated['supervisor_name'] ?? null) : null,
+            'supervisor_position' => null,
+            'role' => $role,
+            'employee_type' => $isAdmin ? null : ($isIntern ? 'intern' : 'regular'),
+            'intern_compensation_enabled' => $isIntern ? false : ($isEmployee ? true : false),
+            'starting_date' => $isAdmin ? null : $validated['starting_date'],
+            'working_days' => $isAdmin ? null : $validated['working_days'],
+            'work_time_in' => $isAdmin ? null : $validated['work_time_in'],
+            'work_time_out' => $isAdmin ? null : $validated['work_time_out'],
             'default_break_minutes' => (int) ($validated['default_break_minutes'] ?? 60),
-            'salary_type' => $internCompensationEnabled ? ($validated['salary_type'] ?? null) : null,
-            'salary_amount' => $internCompensationEnabled ? ($validated['salary_amount'] ?? null) : null,
-            'initial_paid_leave_days' => $isIntern
-                ? 0
-                : round((float) ($validated['initial_paid_leave_days'] ?? 0), 2),
-            'current_paid_leave_balance' => $isIntern
-                ? 0
-                : round(
-                    (float) (
-                        array_key_exists('current_paid_leave_balance', $validated)
-                            ? ($validated['current_paid_leave_balance'] !== null && $validated['current_paid_leave_balance'] !== ''
-                                ? $validated['current_paid_leave_balance']
-                                : ($validated['initial_paid_leave_days'] ?? 0))
-                            : ($validated['initial_paid_leave_days'] ?? 0)
-                    ),
-                    2
-                ),
+            'salary_type' => $isEmployee ? ($validated['salary_type'] ?? null) : null,
+            'salary_amount' => $isEmployee ? ($validated['salary_amount'] ?? null) : null,
+            'initial_paid_leave_days' => $isEmployee ? $initialLeave : 0,
+            'current_paid_leave_balance' => $isEmployee ? $currentLeave : 0,
             'leave_reset_month' => (int) ($validated['leave_reset_month'] ?? 1),
             'leave_reset_day' => (int) ($validated['leave_reset_day'] ?? 1),
-            'employment_status' => 'active',
+            'employment_status' => $existing?->employment_status ?? 'active',
         ];
 
         if ($isCreate) {
             $attributes['password'] = Hash::make($validated['password']);
             $attributes['email_verified_at'] = now();
-            $attributes['is_admin'] = false;
         } elseif (! empty($validated['password'])) {
             $attributes['password'] = Hash::make($validated['password']);
         }
@@ -421,8 +484,60 @@ class AdminEmployeeController extends Controller
         return $attributes;
     }
 
+    private function ensureAdminRoleTransitionIsSafe(User $actor, User $target, string $targetRole): void
+    {
+        if (! $target->isAdmin() || $targetRole === User::ROLE_ADMIN) {
+            return;
+        }
+
+        if ($actor->is($target)) {
+            throw ValidationException::withMessages([
+                'role' => 'You cannot remove your own admin role.',
+            ]);
+        }
+
+        if ($this->adminCount() <= 1) {
+            throw ValidationException::withMessages([
+                'role' => 'At least one admin account must remain in the system.',
+            ]);
+        }
+    }
+
+    private function ensureAdminDeleteIsSafe(User $actor, User $target): void
+    {
+        if (! $target->isAdmin()) {
+            return;
+        }
+
+        if ($this->adminCount() <= 1) {
+            throw ValidationException::withMessages([
+                'email' => 'You cannot delete the last admin account.',
+            ]);
+        }
+
+        if ($actor->is($target)) {
+            throw ValidationException::withMessages([
+                'email' => 'You cannot delete your own admin account.',
+            ]);
+        }
+    }
+
+    private function adminCount(): int
+    {
+        return User::query()
+            ->where(function ($query) {
+                $query->where('role', User::ROLE_ADMIN)
+                    ->orWhere('is_admin', true);
+            })
+            ->count();
+    }
+
     private function generateDtrRowsFromStartDate(User $user): void
     {
+        if (! $user->starting_date || empty($user->working_days)) {
+            return;
+        }
+
         $timezone = 'Asia/Manila';
         $startDate = Carbon::parse($user->starting_date, $timezone)->startOfDay();
         $today = Carbon::now($timezone)->startOfDay();

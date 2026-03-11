@@ -396,6 +396,61 @@ class AdminPayrollController extends Controller
         return redirect()->route('admin.payroll.index')->with('success', 'Payroll finalized and locked.');
     }
 
+    public function destroy(Request $request, PayrollRecord $payrollRecord, AuditLogger $auditLogger): RedirectResponse
+    {
+        if ($payrollRecord->status === 'finalized') {
+            return redirect()->route('admin.payroll.index')->withErrors([
+                'payroll' => 'Finalized payroll cannot be deleted.',
+            ]);
+        }
+
+        $before = $payrollRecord->only([
+            'user_id',
+            'pay_period_start',
+            'pay_period_end',
+            'status',
+            'salary_type',
+            'salary_amount',
+            'base_pay',
+            'paid_leave_pay',
+            'paid_holiday_base_pay',
+            'holiday_attendance_bonus',
+            'total_deductions',
+            'net_pay',
+            'total_salary',
+            'reviewed_by',
+            'reviewed_at',
+            'finalized_by',
+            'finalized_at',
+            'lock_reason',
+            'payslip_path',
+            'payslip_original_name',
+        ]);
+        $payrollRecordId = $payrollRecord->id;
+
+        if ($payrollRecord->payslip_path) {
+            $disk = config('filesystems.default', 'local');
+            if (Storage::disk($disk)->exists($payrollRecord->payslip_path)) {
+                Storage::disk($disk)->delete($payrollRecord->payslip_path);
+            }
+        }
+
+        $payrollRecord->delete();
+
+        $auditLogger->log(
+            $request->user(),
+            'payroll.deleted',
+            'payroll_record',
+            $payrollRecordId,
+            $before,
+            null,
+            'Deleted non-finalized payroll record.',
+            $request
+        );
+
+        return redirect()->route('admin.payroll.index')->with('success', 'Payroll record deleted.');
+    }
+
     public function showPayslip(Request $request, PayrollRecord $payrollRecord): Response
     {
         if ($payrollRecord->status !== 'finalized') {
