@@ -157,6 +157,7 @@ class AdminEmployeeController extends Controller
             'department',
             'supervisor_name',
             'employee_type',
+            'intern_compensation_enabled',
             'starting_date',
             'working_days',
             'work_time_in',
@@ -425,6 +426,11 @@ class AdminEmployeeController extends Controller
             ],
             'leave_reset_month' => 'nullable|integer|between:1,12',
             'leave_reset_day' => 'nullable|integer|between:1,31',
+            'intern_compensation_enabled' => [
+                'nullable',
+                'boolean',
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_INTERN),
+            ],
         ]);
     }
 
@@ -459,7 +465,9 @@ class AdminEmployeeController extends Controller
             'supervisor_position' => null,
             'role' => $role,
             'employee_type' => $isAdmin ? null : ($isIntern ? 'intern' : 'regular'),
-            'intern_compensation_enabled' => $isIntern ? false : ($isEmployee ? true : false),
+            'intern_compensation_enabled' => $isIntern
+                ? (bool) ($validated['intern_compensation_enabled'] ?? $existing?->intern_compensation_enabled ?? false)
+                : ($isEmployee ? true : false),
             'starting_date' => $isAdmin ? null : $validated['starting_date'],
             'working_days' => $isAdmin ? null : $validated['working_days'],
             'work_time_in' => $isAdmin ? null : $validated['work_time_in'],

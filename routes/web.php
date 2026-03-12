@@ -14,7 +14,6 @@ use App\Http\Controllers\AdminInternProgressController;
 use App\Http\Controllers\AdminLeaveController;
 use App\Http\Controllers\EmployeeHolidayController;
 use App\Http\Controllers\EmployeeLeaveController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -24,12 +23,7 @@ Route::get('/', function () {
             ? redirect()->route('admin.employees.index')
             : redirect()->route('dtr.index');
     }
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return Inertia::render('Welcome');
 });
 
 Route::get('/dashboard', function () {

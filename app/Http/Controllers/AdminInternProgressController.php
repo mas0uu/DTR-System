@@ -12,28 +12,28 @@ class AdminInternProgressController extends Controller
 {
     public function index(): Response
     {
-        $interns = User::query()
+        $internUsers = User::query()
             ->where('is_admin', false)
-            ->where('employee_type', 'intern')
+            ->where('role', User::ROLE_INTERN)
             ->orderBy('name')
+            ->get();
+        $internIds = $internUsers->pluck('id');
+        $aggregates = DtrRow::query()
+            ->join('dtr_months', 'dtr_months.id', '=', 'dtr_rows.dtr_month_id')
+            ->whereIn('dtr_months.user_id', $internIds)
+            ->selectRaw('dtr_months.user_id as user_id')
+            ->selectRaw("SUM(CASE WHEN dtr_rows.status = 'finished' THEN dtr_rows.total_minutes ELSE 0 END) AS logged_minutes")
+            ->selectRaw("SUM(CASE WHEN dtr_rows.status = 'finished' AND dtr_rows.total_minutes > 0 THEN 1 ELSE 0 END) AS finished_rows")
+            ->groupBy('dtr_months.user_id')
             ->get()
-            ->map(function (User $intern) {
-                $loggedMinutes = DtrRow::query()
-                    ->whereHas('dtrMonth', function ($query) use ($intern) {
-                        $query->where('user_id', $intern->id);
-                    })
-                    ->where('status', 'finished')
-                    ->sum('total_minutes');
+            ->keyBy('user_id');
+        $interns = $internUsers->map(function (User $intern) use ($aggregates) {
+                $aggregate = $aggregates->get($intern->id);
+                $loggedMinutes = (float) ($aggregate->logged_minutes ?? 0);
                 $loggedHours = round($loggedMinutes / 60, 2);
                 $requiredHours = (float) ($intern->required_hours ?? 0);
                 $remainingHours = max(0, round($requiredHours - $loggedHours, 2));
-                $finishedRows = DtrRow::query()
-                    ->whereHas('dtrMonth', function ($query) use ($intern) {
-                        $query->where('user_id', $intern->id);
-                    })
-                    ->where('status', 'finished')
-                    ->where('total_minutes', '>', 0)
-                    ->count();
+                $finishedRows = (int) ($aggregate->finished_rows ?? 0);
                 $averageDailyHours = $finishedRows > 0 ? round($loggedHours / $finishedRows, 2) : 0.0;
                 $completionPercent = $requiredHours > 0
                     ? min(100, round(($loggedHours / $requiredHours) * 100, 2))

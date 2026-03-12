@@ -13,7 +13,7 @@ class EmployeeHolidayController extends Controller
     public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return redirect()->route('admin.holidays.index');
         }
 

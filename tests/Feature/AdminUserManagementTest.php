@@ -52,6 +52,7 @@ class AdminUserManagementTest extends TestCase
                 'school' => 'Test University',
                 'required_hours' => 480,
                 'supervisor_name' => 'Supervisor',
+                'intern_compensation_enabled' => false,
                 'starting_date' => now()->toDateString(),
                 'working_days' => [1, 2, 3, 4, 5],
                 'work_time_in' => '09:00',
@@ -150,6 +151,51 @@ class AdminUserManagementTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $admin->id,
             'role' => User::ROLE_ADMIN,
+        ]);
+    }
+
+    public function test_admin_can_toggle_intern_compensation_on_update(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $intern = User::factory()->create([
+            'role' => User::ROLE_INTERN,
+            'is_admin' => false,
+            'employee_type' => 'intern',
+            'student_no' => '202600099',
+            'school' => 'Sample University',
+            'required_hours' => 480,
+            'supervisor_name' => 'Supervisor',
+            'starting_date' => now()->toDateString(),
+            'working_days' => [1, 2, 3, 4, 5],
+            'work_time_in' => '09:00',
+            'work_time_out' => '18:00',
+            'default_break_minutes' => 60,
+            'intern_compensation_enabled' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.employees.update', $intern->id), [
+                'name' => $intern->name,
+                'email' => $intern->email,
+                'role' => User::ROLE_INTERN,
+                'student_no' => $intern->student_no,
+                'school' => $intern->school,
+                'required_hours' => $intern->required_hours,
+                'supervisor_name' => $intern->supervisor_name,
+                'intern_compensation_enabled' => true,
+                'starting_date' => $intern->starting_date->format('Y-m-d'),
+                'working_days' => $intern->working_days,
+                'work_time_in' => '09:00',
+                'work_time_out' => '18:00',
+                'default_break_minutes' => 60,
+                'password' => '',
+                'password_confirmation' => '',
+            ])
+            ->assertRedirect(route('admin.employees.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $intern->id,
+            'intern_compensation_enabled' => true,
         ]);
     }
 }

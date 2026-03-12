@@ -3,25 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Models\DtrRow;
+use App\Models\User;
+use App\Support\AttendanceTime;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminAnomalyController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $timezone = 'Asia/Manila';
         $today = Carbon::now($timezone)->toDateString();
+        $days = max(7, min(365, (int) $request->query('days', 90)));
+        $sinceDate = Carbon::now($timezone)->subDays($days)->toDateString();
 
         $rows = DtrRow::query()
             ->whereHas('dtrMonth.user', function ($query) {
-                $query->where('is_admin', false);
+                $query->where('is_admin', false)
+                    ->where(function ($roleQuery) {
+                        $roleQuery->whereNull('role')
+                            ->orWhere('role', '!=', User::ROLE_ADMIN);
+                    });
             })
+            ->whereDate('date', '>=', $sinceDate)
             ->with('dtrMonth.user:id,name,email,employee_type,work_time_in,work_time_out,default_break_minutes')
             ->whereDate('date', '<=', $today)
             ->orderByDesc('date')
             ->orderByDesc('updated_at')
+            ->limit(3000)
             ->get();
 
         $anomalies = [];
@@ -72,6 +83,7 @@ class AdminAnomalyController extends Controller
 
         return Inertia::render('Admin/Anomalies/Index', [
             'anomalies' => collect($anomalies)->values(),
+            'since_days' => $days,
         ]);
     }
 
@@ -94,36 +106,6 @@ class AdminAnomalyController extends Controller
 
     private function expectedDailyMinutes(?string $timeIn, ?string $timeOut, int $defaultBreakMinutes = 60): int
     {
-        $normalizedIn = $this->normalizeTime($timeIn);
-        $normalizedOut = $this->normalizeTime($timeOut);
-
-        if (! $normalizedIn || ! $normalizedOut) {
-            return 0;
-        }
-
-        $in = Carbon::createFromFormat('H:i:s', $normalizedIn);
-        $out = Carbon::createFromFormat('H:i:s', $normalizedOut);
-        if (! $out->gt($in)) {
-            return 0;
-        }
-
-        return max(0, $in->diffInMinutes($out) - max(0, $defaultBreakMinutes));
-    }
-
-    private function normalizeTime(?string $time): ?string
-    {
-        if (! $time) {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
-        } catch (\Throwable $e) {
-            try {
-                return Carbon::createFromFormat('H:i', $time)->format('H:i:s');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
+        return AttendanceTime::expectedDailyMinutes($timeIn, $timeOut, $defaultBreakMinutes);
     }
 }

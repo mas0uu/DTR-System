@@ -7,6 +7,7 @@ use App\Models\DtrRow;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PayrollLockService;
+use App\Support\AttendanceTime;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,10 @@ class AdminAttendanceController extends Controller
     {
         $employees = User::query()
             ->where('is_admin', false)
+            ->where(function ($query) {
+                $query->whereNull('role')
+                    ->orWhere('role', '!=', User::ROLE_ADMIN);
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'department', 'company', 'employee_type'])
             ->map(function (User $employee) {
@@ -40,33 +45,46 @@ class AdminAttendanceController extends Controller
         ]);
     }
 
-    public function logs(): Response
+    public function logs(Request $request): Response
     {
+        $days = max(7, min(365, (int) $request->query('days', 90)));
+        $sinceDate = Carbon::now('Asia/Manila')->subDays($days)->toDateString();
+
         return Inertia::render('Admin/Attendance/Logs', [
-            'attendance_logs' => $this->attendanceLogsPayload(),
+            'attendance_logs' => $this->attendanceLogsPayload($sinceDate),
+            'since_days' => $days,
         ]);
     }
 
-    public function show(Request $request, User $employee, PayrollLockService $payrollLockService): Response|RedirectResponse
+    public function show(Request $request, User $employee): Response|RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
 
         $months = DtrMonth::query()
             ->where('user_id', $employee->id)
+            ->withCount([
+                'rows as finished_rows' => function ($query) {
+                    $query->where('status', 'finished');
+                },
+            ])
+            ->withSum([
+                'rows as finished_total_minutes' => function ($query) {
+                    $query->where('status', 'finished');
+                },
+            ], 'total_minutes')
             ->orderByDesc('year')
             ->orderByDesc('month')
             ->get()
             ->map(function (DtrMonth $month) {
+                $finishedMinutes = (float) ($month->finished_total_minutes ?? 0);
+
                 return [
                     'id' => $month->id,
                     'month' => $month->month,
                     'year' => $month->year,
                     'month_name' => Carbon::createFromDate($month->year, $month->month, 1)->format('F Y'),
-                    'total_hours' => round(
-                        $month->rows()->where('status', 'finished')->sum('total_minutes') / 60,
-                        2
-                    ),
-                    'finished_rows' => $month->rows()->where('status', 'finished')->count(),
+                    'total_hours' => round($finishedMinutes / 60, 2),
+                    'finished_rows' => (int) $month->finished_rows,
                 ];
             });
 
@@ -97,12 +115,34 @@ class AdminAttendanceController extends Controller
             $employee->work_time_out,
             (int) ($employee->default_break_minutes ?? 60)
         );
+        $finalizedPeriods = collect();
+        if ($selectedMonth) {
+            $monthStart = Carbon::createFromDate($selectedMonth->year, $selectedMonth->month, 1, 'Asia/Manila')->startOfDay();
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $finalizedPeriods = \App\Models\PayrollRecord::query()
+                ->where('user_id', $employee->id)
+                ->where('status', 'finalized')
+                ->whereDate('pay_period_start', '<=', $monthEnd->toDateString())
+                ->whereDate('pay_period_end', '>=', $monthStart->toDateString())
+                ->get(['pay_period_start', 'pay_period_end'])
+                ->map(function (\App\Models\PayrollRecord $record) {
+                    return [
+                        'start' => $record->pay_period_start->format('Y-m-d'),
+                        'end' => $record->pay_period_end->format('Y-m-d'),
+                    ];
+                })
+                ->values();
+        }
         $rows = $selectedMonth
-            ? $selectedMonth->rows()->orderBy('date')->get()->map(function (DtrRow $row) use ($expectedDailyMinutes, $employee, $payrollLockService) {
+            ? $selectedMonth->rows()->orderBy('date')->get()->map(function (DtrRow $row) use ($expectedDailyMinutes, $finalizedPeriods) {
+                $rowDate = $row->date->format('Y-m-d');
+                $isLockedByPayroll = $finalizedPeriods->contains(function (array $period) use ($rowDate) {
+                    return $rowDate >= $period['start'] && $rowDate <= $period['end'];
+                });
                 $flags = $this->detectFlags($row, $expectedDailyMinutes);
                 return [
                     'id' => $row->id,
-                    'date' => $row->date->format('Y-m-d'),
+                    'date' => $rowDate,
                     'day' => $row->day,
                     'time_in' => $row->time_in,
                     'time_out' => $row->time_out,
@@ -111,7 +151,7 @@ class AdminAttendanceController extends Controller
                     'total_minutes' => (int) $row->total_minutes,
                     'total_hours' => round(((int) $row->total_minutes) / 60, 2),
                     'status' => $row->status,
-                    'is_locked_by_payroll' => $payrollLockService->isDateFinalized($employee->id, $row->date),
+                    'is_locked_by_payroll' => $isLockedByPayroll,
                     'attendance_statuses' => $this->attendanceStatuses($row, $expectedDailyMinutes),
                     'flags' => $flags,
                 ];
@@ -139,7 +179,7 @@ class AdminAttendanceController extends Controller
     ): RedirectResponse {
         $row->load('dtrMonth.user');
         $employee = $row->dtrMonth->user;
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
         if ($payrollLockService->isDateFinalized($employee->id, $row->date)) {
             return redirect()->back()->withErrors([
                 'status' => 'This attendance date belongs to a finalized payroll. Use correction workflow with a reason.',
@@ -192,7 +232,7 @@ class AdminAttendanceController extends Controller
     ): RedirectResponse {
         $row->load('dtrMonth.user');
         $employee = $row->dtrMonth->user;
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
         if (! $payrollLockService->isDateFinalized($employee->id, $row->date)) {
             return redirect()->back()->withErrors([
                 'status' => 'This row is not in a finalized payroll period. Use normal update.',
@@ -313,20 +353,7 @@ class AdminAttendanceController extends Controller
 
     private function expectedDailyMinutes(?string $timeIn, ?string $timeOut, int $defaultBreakMinutes = 60): int
     {
-        $normalizedIn = $this->normalizeToHis($timeIn);
-        $normalizedOut = $this->normalizeToHis($timeOut);
-
-        if (! $normalizedIn || ! $normalizedOut) {
-            return 0;
-        }
-
-        $in = Carbon::createFromFormat('H:i:s', $normalizedIn);
-        $out = Carbon::createFromFormat('H:i:s', $normalizedOut);
-        if (! $out->gt($in)) {
-            return 0;
-        }
-
-        return max(0, $in->diffInMinutes($out) - max(0, $defaultBreakMinutes));
+        return AttendanceTime::expectedDailyMinutes($timeIn, $timeOut, $defaultBreakMinutes);
     }
 
     private function detectFlags(DtrRow $row, int $expectedDailyMinutes): array
@@ -407,25 +434,12 @@ class AdminAttendanceController extends Controller
 
     private function normalizeToHi(?string $time): ?string
     {
-        $normalized = $this->normalizeToHis($time);
-        return $normalized ? Carbon::createFromFormat('H:i:s', $normalized)->format('H:i') : null;
+        return AttendanceTime::normalizeToHi($time);
     }
 
     private function normalizeToHis(?string $time): ?string
     {
-        if (! $time) {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
-        } catch (\Throwable $e) {
-            try {
-                return Carbon::createFromFormat('H:i', $time)->format('H:i:s');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
+        return AttendanceTime::normalizeToHis($time);
     }
 
     private function calculateLateMinutes(Carbon $date, ?string $shiftStart, string $actualTimeIn): int
@@ -459,9 +473,9 @@ class AdminAttendanceController extends Controller
         return $configured >= 0 ? $configured : self::DEFAULT_GRACE_MINUTES;
     }
 
-    private function attendanceLogsPayload()
+    private function attendanceLogsPayload(?string $sinceDate = null)
     {
-        return DtrRow::query()
+        $query = DtrRow::query()
             ->where(function ($query) {
                 $query->whereNotNull('time_in')
                     ->orWhereNotNull('time_out')
@@ -472,7 +486,11 @@ class AdminAttendanceController extends Controller
                     });
             })
             ->whereHas('dtrMonth.user', function ($query) {
-                $query->where('is_admin', false);
+                $query->where('is_admin', false)
+                    ->where(function ($roleQuery) {
+                        $roleQuery->whereNull('role')
+                            ->orWhere('role', '!=', User::ROLE_ADMIN);
+                    });
             })
             ->with([
                 'dtrMonth.user:id,name,email,employee_type,work_time_in,work_time_out,default_break_minutes',
@@ -480,6 +498,12 @@ class AdminAttendanceController extends Controller
             ])
             ->orderByDesc('date')
             ->orderByDesc('updated_at')
+            ->limit(2000);
+        if ($sinceDate) {
+            $query->whereDate('date', '>=', $sinceDate);
+        }
+
+        return $query
             ->get()
             ->map(function (DtrRow $row) {
                 $employee = $row->dtrMonth->user;

@@ -20,6 +20,10 @@ class AdminPayrollController extends Controller
     {
         $employees = User::query()
             ->where('is_admin', false)
+            ->where(function ($query) {
+                $query->whereNull('role')
+                    ->orWhere('role', '!=', User::ROLE_ADMIN);
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'employee_type', 'intern_compensation_enabled', 'salary_type', 'salary_amount'])
             ->map(function (User $employee) {
@@ -96,6 +100,10 @@ class AdminPayrollController extends Controller
         /** @var User $employee */
         $employee = User::query()
             ->where('is_admin', false)
+            ->where(function ($query) {
+                $query->whereNull('role')
+                    ->orWhere('role', '!=', User::ROLE_ADMIN);
+            })
             ->findOrFail($validated['employee_id']);
         if ($employee->employee_type === 'intern' && ! $employee->intern_compensation_enabled) {
             return redirect()
@@ -120,6 +128,13 @@ class AdminPayrollController extends Controller
         $timezone = 'Asia/Manila';
         $periodStart = Carbon::parse($validated['pay_period_start'], $timezone)->startOfDay();
         $periodEnd = Carbon::parse($validated['pay_period_end'], $timezone)->startOfDay();
+        if (! $periodStart->isSameMonth($periodEnd)) {
+            return redirect()
+                ->route('admin.payroll.index')
+                ->withErrors([
+                    'payroll' => 'Payroll period must be within a single calendar month.',
+                ]);
+        }
         $existing = PayrollRecord::query()
             ->where('user_id', $employee->id)
             ->whereDate('pay_period_start', $periodStart->toDateString())
@@ -207,10 +222,21 @@ class AdminPayrollController extends Controller
         $timezone = 'Asia/Manila';
         $periodStart = Carbon::parse($validated['pay_period_start'], $timezone)->startOfDay();
         $periodEnd = Carbon::parse($validated['pay_period_end'], $timezone)->startOfDay();
+        if (! $periodStart->isSameMonth($periodEnd)) {
+            return redirect()
+                ->route('admin.payroll.index')
+                ->withErrors([
+                    'payroll' => 'Payroll period must be within a single calendar month.',
+                ]);
+        }
         $actor = $request->user();
 
         $employees = User::query()
             ->where('is_admin', false)
+            ->where(function ($query) {
+                $query->whereNull('role')
+                    ->orWhere('role', '!=', User::ROLE_ADMIN);
+            })
             ->orderBy('name')
             ->get();
 

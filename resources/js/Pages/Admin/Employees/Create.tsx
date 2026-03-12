@@ -17,6 +17,7 @@ export default function CreateEmployee() {
         name: '',
         email: '',
         role: '' as '' | 'admin' | 'employee' | 'intern',
+        intern_compensation_enabled: false,
         password: '',
         password_confirmation: '',
         student_no: '',
@@ -70,6 +71,7 @@ export default function CreateEmployee() {
                                 setData('work_time_out', '18:00');
                                 setData('default_break_minutes', 60);
                                 setData('company', 'Boilerplate Test');
+                                setData('intern_compensation_enabled', false);
                             },
                         });
                     }}

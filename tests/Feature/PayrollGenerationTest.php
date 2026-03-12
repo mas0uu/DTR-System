@@ -84,4 +84,26 @@ class PayrollGenerationTest extends TestCase
             'total_salary' => '3409.09',
         ]);
     }
+
+    public function test_payroll_period_must_be_within_single_calendar_month(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'employee_type' => 'regular',
+            'starting_date' => '2026-03-01',
+            'working_days' => [1, 2, 3, 4, 5],
+            'work_time_in' => '09:00',
+            'work_time_out' => '18:00',
+            'salary_type' => 'monthly',
+            'salary_amount' => 50000,
+        ]);
+
+        $response = $this->actingAs($user)->post(route('payroll.generate'), [
+            'pay_period_start' => '2026-03-20',
+            'pay_period_end' => '2026-04-05',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error', 'Payroll period must be within a single calendar month.');
+    }
 }

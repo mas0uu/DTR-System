@@ -6,6 +6,7 @@ use App\Models\DtrMonth;
 use App\Models\PayrollRecord;
 use App\Models\DtrRow;
 use App\Models\User;
+use App\Support\AttendanceTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,7 +22,7 @@ class DtrMonthController extends Controller
     {
         $user = $request->user();
 
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return redirect()->route('admin.employees.index');
         }
 
@@ -39,18 +40,31 @@ class DtrMonthController extends Controller
 
         // Get all months for this user
         $months = DtrMonth::where('user_id', $user->id)
+            ->withCount([
+                'rows as finished_rows' => function ($query) {
+                    $query->where('status', 'finished');
+                },
+            ])
+            ->withSum([
+                'rows as finished_total_minutes' => function ($query) {
+                    $query->where('status', 'finished')
+                        ->where('total_minutes', '>', 0);
+                },
+            ], 'total_minutes')
             ->orderBy('year')
             ->orderBy('month')
             ->get()
             ->map(function ($month) {
+                $finishedMinutes = (int) round((float) ($month->finished_total_minutes ?? 0));
+
                 return [
                     'id' => $month->id,
                     'month' => $month->month,
                     'year' => $month->year,
                     'monthName' => Carbon::createFromDate($month->year, $month->month, 1)->format('F Y'),
                     'is_fulfilled' => $month->is_fulfilled,
-                    'total_hours' => $this->calculateTotalHours($month),
-                    'finished_rows' => $month->rows()->where('status', 'finished')->count(),
+                    'total_hours' => $finishedMinutes / 60,
+                    'finished_rows' => (int) $month->finished_rows,
                 ];
             });
 
@@ -169,7 +183,7 @@ class DtrMonthController extends Controller
         $this->authorize('view', $month);
         $user = $request->user();
 
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return redirect()->route('admin.employees.index');
         }
 
@@ -190,11 +204,6 @@ class DtrMonthController extends Controller
             ->whereDate('pay_period_start', '<=', $monthEnd->toDateString())
             ->whereDate('pay_period_end', '>=', $monthStart->toDateString())
             ->get(['pay_period_start', 'pay_period_end'])
-            ->filter(function (PayrollRecord $record) {
-                return $record->pay_period_start
-                    && $record->pay_period_end
-                    && $record->pay_period_start->isSameMonth($record->pay_period_end);
-            })
             ->map(function (PayrollRecord $record) {
                 return [
                     'start' => $record->pay_period_start->format('Y-m-d'),
@@ -346,20 +355,7 @@ class DtrMonthController extends Controller
 
     private function expectedDailyMinutes(?string $timeIn, ?string $timeOut, int $defaultBreakMinutes = 60): int
     {
-        $normalizedIn = $this->normalizeTimeString($timeIn);
-        $normalizedOut = $this->normalizeTimeString($timeOut);
-
-        if (! $normalizedIn || ! $normalizedOut) {
-            return 0;
-        }
-
-        $in = Carbon::createFromFormat('H:i:s', $normalizedIn);
-        $out = Carbon::createFromFormat('H:i:s', $normalizedOut);
-        if (! $out->gt($in)) {
-            return 0;
-        }
-
-        return max(0, $in->diffInMinutes($out) - max(0, $defaultBreakMinutes));
+        return AttendanceTime::expectedDailyMinutes($timeIn, $timeOut, $defaultBreakMinutes);
     }
 
     private function attendanceStatuses(DtrRow $row, int $expectedDailyMinutes): array
@@ -525,26 +521,9 @@ class DtrMonthController extends Controller
             ]);
     }
 
-    private function normalizeTimeString(?string $time): ?string
-    {
-        if (! $time) {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
-        } catch (\Throwable $e) {
-            try {
-                return Carbon::createFromFormat('H:i', $time)->format('H:i:s');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
-    }
-
     private function resolveShiftStart(?string $workTimeIn): string
     {
-        $normalized = $this->normalizeTimeString($workTimeIn ?: self::DEFAULT_SHIFT_START)
+        $normalized = AttendanceTime::normalizeToHis($workTimeIn ?: self::DEFAULT_SHIFT_START)
             ?? self::DEFAULT_SHIFT_START;
 
         return Carbon::createFromFormat('H:i:s', $normalized)->format('H:i');
@@ -568,38 +547,24 @@ class DtrMonthController extends Controller
 
     private function buildInternshipSummary(User $user, string $todayDate): array
     {
-        $totalRenderedHours = (float) DtrRow::query()
-            ->whereHas('dtrMonth', fn ($query) => $query->where('user_id', $user->id))
-            ->where('status', 'finished')
-            ->where('total_minutes', '>', 0)
-            ->sum('total_minutes') / 60;
+        $aggregates = DtrRow::query()
+            ->join('dtr_months', 'dtr_months.id', '=', 'dtr_rows.dtr_month_id')
+            ->where('dtr_months.user_id', $user->id)
+            ->selectRaw("SUM(CASE WHEN dtr_rows.status = 'finished' AND dtr_rows.total_minutes > 0 THEN dtr_rows.total_minutes ELSE 0 END) AS rendered_minutes")
+            ->selectRaw("SUM(CASE WHEN dtr_rows.status = 'finished' AND dtr_rows.total_minutes > 0 THEN 1 ELSE 0 END) AS finished_rows")
+            ->selectRaw("SUM(CASE WHEN dtr_rows.late_minutes > 0 THEN 1 ELSE 0 END) AS late_count")
+            ->selectRaw("SUM(CASE WHEN dtr_rows.status IN ('missed', 'leave') THEN 1 ELSE 0 END) AS absence_count")
+            ->selectRaw("SUM(CASE WHEN (dtr_rows.time_in IS NOT NULL AND dtr_rows.time_out IS NULL) OR (dtr_rows.time_in IS NULL AND dtr_rows.time_out IS NOT NULL) THEN 1 ELSE 0 END) AS incomplete_count")
+            ->first();
+        $renderedMinutes = (float) ($aggregates?->rendered_minutes ?? 0);
+        $totalRenderedHours = $renderedMinutes / 60;
         $requiredHours = (float) ($user->required_hours ?? 0);
         $remainingHours = max(0, round($requiredHours - $totalRenderedHours, 2));
-
-        $finishedRows = DtrRow::query()
-            ->whereHas('dtrMonth', fn ($query) => $query->where('user_id', $user->id))
-            ->where('status', 'finished')
-            ->where('total_minutes', '>', 0)
-            ->count();
+        $finishedRows = (int) ($aggregates?->finished_rows ?? 0);
         $averageDailyHours = $finishedRows > 0 ? round($totalRenderedHours / $finishedRows, 2) : 0.0;
-        $lateCount = (int) DtrRow::query()
-            ->whereHas('dtrMonth', fn ($query) => $query->where('user_id', $user->id))
-            ->where('late_minutes', '>', 0)
-            ->count();
-        $absenceCount = (int) DtrRow::query()
-            ->whereHas('dtrMonth', fn ($query) => $query->where('user_id', $user->id))
-            ->whereIn('status', ['missed', 'leave'])
-            ->count();
-        $incompleteCount = (int) DtrRow::query()
-            ->whereHas('dtrMonth', fn ($query) => $query->where('user_id', $user->id))
-            ->where(function ($query) {
-                $query->where(function ($subQuery) {
-                    $subQuery->whereNotNull('time_in')->whereNull('time_out');
-                })->orWhere(function ($subQuery) {
-                    $subQuery->whereNull('time_in')->whereNotNull('time_out');
-                });
-            })
-            ->count();
+        $lateCount = (int) ($aggregates?->late_count ?? 0);
+        $absenceCount = (int) ($aggregates?->absence_count ?? 0);
+        $incompleteCount = (int) ($aggregates?->incomplete_count ?? 0);
 
         $estimatedCompletionDate = $this->estimateCompletionDate(
             $user,

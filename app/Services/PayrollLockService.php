@@ -23,8 +23,7 @@ class PayrollLockService
             ->where('status', 'finalized')
             ->whereDate('pay_period_start', '<=', $dateString)
             ->whereDate('pay_period_end', '>=', $dateString)
-            ->get()
-            ->filter(fn (PayrollRecord $record) => $this->isMonthContainedPeriod($record));
+            ->get();
     }
 
     public function resetFinalizedRecordsForDate(int $userId, Carbon|string $date, ?string $reason = null): int
@@ -46,14 +45,5 @@ class PayrollLockService
                 'correction_count' => DB::raw('correction_count + 1'),
                 'updated_at' => now(),
             ]);
-    }
-
-    private function isMonthContainedPeriod(PayrollRecord $record): bool
-    {
-        if (! $record->pay_period_start || ! $record->pay_period_end) {
-            return false;
-        }
-
-        return $record->pay_period_start->isSameMonth($record->pay_period_end);
     }
 }

@@ -19,7 +19,7 @@ class PayrollController extends Controller
     public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return redirect()->route('admin.payroll.index');
         }
         if (! $this->payrollAccessEnabled($user)) {
@@ -140,6 +140,11 @@ class PayrollController extends Controller
         $timezone = 'Asia/Manila';
         $periodStart = Carbon::parse($validated['pay_period_start'], $timezone)->startOfDay();
         $periodEnd = Carbon::parse($validated['pay_period_end'], $timezone)->startOfDay();
+        if (! $periodStart->isSameMonth($periodEnd)) {
+            return response()->json([
+                'error' => 'Payroll period must be within a single calendar month.',
+            ], 422);
+        }
         $existing = PayrollRecord::query()
             ->where('user_id', $user->id)
             ->whereDate('pay_period_start', $periodStart->toDateString())

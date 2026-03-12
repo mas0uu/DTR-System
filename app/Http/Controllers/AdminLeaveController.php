@@ -179,7 +179,7 @@ class AdminLeaveController extends Controller
 
     public function adjustBalance(Request $request, User $employee, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_if($employee->is_admin, 404);
+        abort_if($employee->isAdmin(), 404);
         if (! $employee->isPaidLeaveEligible()) {
             return redirect()->route('admin.leaves.index')->withErrors([
                 'leave_balance' => 'Leave balance adjustments are available only for regular employees.',

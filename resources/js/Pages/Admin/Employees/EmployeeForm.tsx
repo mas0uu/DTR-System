@@ -2,13 +2,14 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import { Col, Divider, Row, Select, TimePicker } from 'antd';
+import { Col, Divider, Row, Select, Switch, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 
 type EmployeeFormData = {
     name: string;
     email: string;
     role: '' | 'admin' | 'employee' | 'intern';
+    intern_compensation_enabled: boolean;
     password: string;
     password_confirmation: string;
     student_no: string;
@@ -111,6 +112,11 @@ export default function EmployeeForm({
                                     setData('school', '');
                                     setData('required_hours', '');
                                     setData('supervisor_name', '');
+                                    setData('intern_compensation_enabled', false);
+                                } else if (value === 'employee') {
+                                    setData('intern_compensation_enabled', true);
+                                } else if (value === 'intern') {
+                                    setData('intern_compensation_enabled', false);
                                 }
                             }}
                             options={[
@@ -281,6 +287,19 @@ export default function EmployeeForm({
                                     onChange={(e) => setData('supervisor_name', e.target.value)}
                                 />
                                 <InputError message={errors.supervisor_name} className="mt-2" />
+                            </Col>
+                        </Row>
+                        <Row gutter={16} className="mt-4">
+                            <Col xs={24} sm={12}>
+                                <InputLabel htmlFor="intern_compensation_enabled" value="Intern Compensation Enabled" />
+                                <div className="mt-2">
+                                    <Switch
+                                        id="intern_compensation_enabled"
+                                        checked={data.intern_compensation_enabled}
+                                        onChange={(value) => setData('intern_compensation_enabled', value)}
+                                    />
+                                </div>
+                                <InputError message={errors.intern_compensation_enabled} className="mt-2" />
                             </Col>
                         </Row>
                     </>

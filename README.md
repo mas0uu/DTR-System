@@ -11,14 +11,15 @@ Daily Time Record (DTR) application built with Laravel, Inertia.js, React, and T
 
 ## Main Features
 
-- Authentication with email verification
-- Registration for intern/regular employee profiles
+- Session-based authentication (email or student number login)
+- Admin-only user provisioning (public registration is disabled)
 - DTR rows with:
   - Clock in / clock out
   - Break tracking
-  - Leave tagging for missed past rows
+  - Leave/absence requests for missed past rows
   - Late-minute computation
 - Monthly DTR view with print layout
+- Payroll generation/review/finalization workflow
 - Profile management
 
 ## Project Setup
@@ -56,6 +57,7 @@ npm run dev
 ```bash
 php artisan test
 ```
+Note: feature tests use SQLite in-memory by default (`pdo_sqlite` extension required).
 
 - Build assets:
 ```bash

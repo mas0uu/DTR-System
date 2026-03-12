@@ -14,7 +14,7 @@ class EmployeeLeaveController extends Controller
     public function index(Request $request, LeaveBalanceService $leaveBalanceService): Response|RedirectResponse
     {
         $user = $request->user();
-        if ($user->is_admin) {
+        if ($user->isAdmin()) {
             return redirect()->route('admin.leaves.index');
         }
         $leaveBalanceService->refreshAnnualBalanceForUser($user);

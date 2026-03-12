@@ -16,6 +16,7 @@ type Employee = {
     department: string | null;
     supervisor_name: string | null;
     employee_type: 'intern' | 'regular' | null;
+    intern_compensation_enabled: boolean;
     starting_date: string | null;
     working_days: number[] | null;
     work_time_in: string | null;
@@ -35,6 +36,7 @@ export default function EditEmployee({ employee }: { employee: Employee }) {
         student_no: employee.student_no || '',
         email: employee.email || '',
         role: employee.role || '',
+        intern_compensation_enabled: !!employee.intern_compensation_enabled,
         password: '',
         password_confirmation: '',
         school: employee.school || '',

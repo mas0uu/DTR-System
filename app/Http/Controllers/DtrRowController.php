@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Services\AuditLogger;
 use App\Services\LeaveBalanceService;
 use App\Services\PayrollLockService;
+use App\Support\AttendanceTime;
 use Illuminate\Http\Request;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Carbon\Carbon;
@@ -216,11 +217,16 @@ class DtrRowController extends Controller
         $now = Carbon::now('Asia/Manila');
         $timeIn = Carbon::createFromFormat('H:i:s', $row->time_in, 'Asia/Manila');
         $workedMinutes = $timeIn->diffInMinutes($now);
-        $totalMinutes = max(0, $workedMinutes - (int) $row->break_minutes);
+        $accruedBreakMinutes = (int) $row->break_minutes;
+        if ($row->on_break && $row->break_started_at) {
+            $accruedBreakMinutes += max(1, $row->break_started_at->diffInMinutes($now));
+        }
+        $totalMinutes = max(0, $workedMinutes - $accruedBreakMinutes);
         $before = $this->attendanceSnapshot($row);
 
         $row->update([
             'time_out' => $now->format('H:i:s'),
+            'break_minutes' => $accruedBreakMinutes,
             'total_minutes' => $totalMinutes,
             'status' => 'finished',
             'on_break' => false,
@@ -553,20 +559,7 @@ class DtrRowController extends Controller
 
     private function expectedDailyMinutes(?string $timeIn, ?string $timeOut, int $defaultBreakMinutes = 60): int
     {
-        $normalizedIn = $this->normalizeTimeString($timeIn);
-        $normalizedOut = $this->normalizeTimeString($timeOut);
-
-        if (! $normalizedIn || ! $normalizedOut) {
-            return 0;
-        }
-
-        $in = Carbon::createFromFormat('H:i:s', $normalizedIn);
-        $out = Carbon::createFromFormat('H:i:s', $normalizedOut);
-        if (! $out->gt($in)) {
-            return 0;
-        }
-
-        return max(0, $in->diffInMinutes($out) - max(0, $defaultBreakMinutes));
+        return AttendanceTime::expectedDailyMinutes($timeIn, $timeOut, $defaultBreakMinutes);
     }
 
     private function attendanceStatuses(DtrRow $row, int $expectedDailyMinutes): array
@@ -657,19 +650,7 @@ class DtrRowController extends Controller
 
     private function normalizeTimeString(?string $time): ?string
     {
-        if (! $time) {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
-        } catch (\Throwable $e) {
-            try {
-                return Carbon::createFromFormat('H:i', $time)->format('H:i:s');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
+        return AttendanceTime::normalizeToHis($time);
     }
 
     private function attendanceSnapshot(DtrRow $row): array
