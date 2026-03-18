@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
+import { useThemeMode } from '@/lib/theme';
 
 export default function Login({
     status,
@@ -9,6 +10,7 @@ export default function Login({
     status?: string;
     canResetPassword: boolean;
 }) {
+    const { themeMode, toggleTheme } = useThemeMode();
     const { data, setData, post, processing, errors, reset } = useForm({
         credential: '',
         password: '',
@@ -28,6 +30,12 @@ export default function Login({
             <Head title="Log in" />
 
             <div className="login-shell">
+                <div className="login-theme-toggle-wrap">
+                    <button type="button" className="theme-toggle-btn" onClick={toggleTheme}>
+                        {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </button>
+                </div>
+
                 <div className="login-layout">
                     <section className="login-visual" aria-hidden="true">
                         <div className="login-visual-art">

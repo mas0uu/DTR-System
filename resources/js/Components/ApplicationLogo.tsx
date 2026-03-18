@@ -8,7 +8,7 @@ export default function ApplicationLogo({
         <div
             {...props}
             className={
-                'inline-flex items-center border-[#d7e3e8] bg-white px-3 py-2 shadow-sm ' +
+                'inline-flex items-center border border-[var(--xp-line)] bg-[var(--xp-panel)] px-3 py-2 shadow-sm ' +
                 className
             }
         >

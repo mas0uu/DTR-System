@@ -7,6 +7,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import type { ReactNode } from 'react';
 import ModernLayout from './Layouts/ModernLayout';
+import { initializeTheme } from './lib/theme';
 
 type InertiaPageModule = {
     default: {
@@ -15,6 +16,7 @@ type InertiaPageModule = {
 };
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+initializeTheme();
 
 createInertiaApp({
     title: (title) => `${title} DTR System`,

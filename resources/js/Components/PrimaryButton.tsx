@@ -10,7 +10,7 @@ export default function PrimaryButton({
         <button
             {...props}
             className={
-                `inline-flex items-center rounded-md border border-[#003149] bg-[#00415f] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition duration-150 ease-in-out hover:-translate-y-px hover:bg-[#005a82] focus:bg-[#005a82] focus:outline-none focus:ring-2 focus:ring-[#4BB9D2] focus:ring-offset-2 active:translate-y-px active:bg-[#003149] ${
+                `theme-btn-primary inline-flex items-center rounded-md px-4 py-2 text-xs font-semibold uppercase tracking-widest ${
                     disabled && 'opacity-25'
                 } ` + className
             }

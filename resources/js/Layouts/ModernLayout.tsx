@@ -6,13 +6,16 @@ import {
     FileTextOutlined,
     LogoutOutlined,
     MenuOutlined,
+    MoonOutlined,
     SettingOutlined,
+    SunOutlined,
     TeamOutlined,
     UnorderedListOutlined,
     UserOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, ConfigProvider, Drawer, Dropdown, Layout, Menu, Space, theme } from 'antd';
 import type { MenuProps } from 'antd';
+import { useThemeMode } from '@/lib/theme';
 
 const { Sider, Header, Content } = Layout;
 
@@ -22,6 +25,7 @@ interface ModernLayoutProps {
 
 export default function ModernLayout({ children }: ModernLayoutProps) {
     const page = usePage();
+    const { isDark, toggleTheme } = useThemeMode();
     const user = page.props.auth.user;
     const displayName = user.student_name || user.name || 'User';
     const avatarInitials = useMemo(() => {
@@ -232,25 +236,25 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
     return (
         <ConfigProvider
             theme={{
-                algorithm: theme.defaultAlgorithm,
+                algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
                 token: {
-                    colorPrimary: '#00415f',
+                    colorPrimary: isDark ? '#4BB9D2' : '#00415f',
                     borderRadius: 10,
                     fontSize: 13,
                     fontFamily: 'Manrope, Segoe UI, Tahoma, Verdana, sans-serif',
                 },
                 components: {
                     Layout: {
-                        colorBgHeader: '#ffffff',
+                        colorBgHeader: 'var(--xp-panel)',
                         colorBgBody: 'transparent',
                     },
                     Menu: {
-                        itemBg: '#f8fbfc',
-                        itemSelectedBg: '#e6f2f6',
-                        itemSelectedColor: '#00415f',
-                        itemColor: '#334155',
-                        itemHoverBg: '#f1f7f9',
-                        itemHoverColor: '#0f172a',
+                        itemBg: 'var(--xp-panel-soft)',
+                        itemSelectedBg: 'var(--xp-hover-bg)',
+                        itemSelectedColor: 'var(--xp-primary)',
+                        itemColor: 'var(--xp-text)',
+                        itemHoverBg: 'var(--xp-hover-bg)',
+                        itemHoverColor: 'var(--xp-text)',
                         itemHeight: 38,
                     },
                 },
@@ -259,14 +263,14 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
             <Layout className="app-shell" style={{ minHeight: '100vh' }}>
                 <Sider
                     width={236}
-                    theme="light"
+                    theme={isDark ? 'dark' : 'light'}
                     className="hidden lg:block"
-                    style={{ borderRight: '1px solid #d7e3e8', background: '#f8fbfc' }}
+                    style={{ borderRight: '1px solid var(--xp-line)', background: 'var(--xp-panel-soft)' }}
                 >
                     <div className="px-4 py-5">
                         <Link
                             href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
-                            className="block border border-[#d7e3e8] bg-white p-3 shadow-sm transition hover:border-[#4BB9D2]"
+                            className="block border border-[var(--xp-line)] bg-[var(--xp-panel)] p-3 shadow-sm transition hover:border-[#4BB9D2]"
                         >
                             <img
                                 src="/images/doxsys-logo-full.png"
@@ -281,7 +285,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                             mode="inline"
                             selectedKeys={selectedNavKey ? [selectedNavKey] : []}
                             items={buildMenuItems(false)}
-                            style={{ borderInlineEnd: 0, background: '#f8fbfc' }}
+                            style={{ borderInlineEnd: 0, background: 'var(--xp-panel-soft)' }}
                         />
                     </div>
                 </Sider>
@@ -292,7 +296,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         style={{
                             padding: '0 16px',
                             height: '64px',
-                            borderBottom: '1px solid #e2e8f0',
+                            borderBottom: '1px solid var(--xp-line)',
                             display: 'flex',
                             justifyContent: 'center',
                         }}
@@ -319,27 +323,38 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                     alt="Doxsys"
                                     className="hidden h-7 w-auto object-contain sm:block"
                                 />
-                                <span className="text-base font-semibold text-slate-900">{pageTitle}</span>
+                                <span className="text-base font-semibold" style={{ color: 'var(--xp-text)' }}>{pageTitle}</span>
                             </div>
 
-                            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight" trigger={['click']}>
-                                <Space style={{ cursor: 'pointer' }}>
-                                    <Avatar
-                                        size={32}
-                                        style={{ background: '#00415f', overflow: 'hidden' }}
-                                        src={profilePhotoSrc && !avatarImageError ? profilePhotoSrc : undefined}
-                                        onError={() => {
-                                            setAvatarImageError(true);
-                                            return false;
-                                        }}
-                                    >
-                                        {avatarInitials}
-                                    </Avatar>
-                                    <span style={{ fontSize: '14px', fontWeight: 500, color: '#0f172a' }}>
-                                        {displayName}
-                                    </span>
-                                </Space>
-                            </Dropdown>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="default"
+                                    icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+                                    onClick={toggleTheme}
+                                    className="theme-toggle-btn"
+                                >
+                                    <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
+                                </Button>
+
+                                <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight" trigger={['click']}>
+                                    <Space style={{ cursor: 'pointer' }}>
+                                        <Avatar
+                                            size={32}
+                                            style={{ background: 'var(--xp-primary)', overflow: 'hidden' }}
+                                            src={profilePhotoSrc && !avatarImageError ? profilePhotoSrc : undefined}
+                                            onError={() => {
+                                                setAvatarImageError(true);
+                                                return false;
+                                            }}
+                                        >
+                                            {avatarInitials}
+                                        </Avatar>
+                                        <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--xp-text)' }}>
+                                            {displayName}
+                                        </span>
+                                    </Space>
+                                </Dropdown>
+                            </div>
                         </div>
                     </Header>
 
@@ -376,7 +391,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     <Link
                         href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
                         onClick={() => setMobileNavOpen(false)}
-                        className="block border border-[#d7e3e8] bg-white p-3"
+                        className="block border border-[var(--xp-line)] bg-[var(--xp-panel)] p-3"
                     >
                         <img
                             src="/images/doxsys-logo-full.png"
