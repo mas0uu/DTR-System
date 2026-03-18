@@ -15,7 +15,6 @@ use App\Http\Controllers\AdminLeaveController;
 use App\Http\Controllers\EmployeeHolidayController;
 use App\Http\Controllers\EmployeeLeaveController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -23,7 +22,7 @@ Route::get('/', function () {
             ? redirect()->route('admin.employees.index')
             : redirect()->route('dtr.index');
     }
-    return Inertia::render('Welcome');
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', function () {

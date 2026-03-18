@@ -1,13 +1,6 @@
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
-import { Alert, Card, Checkbox, Typography } from 'antd';
-
-const { Title, Paragraph } = Typography;
 
 export default function Login({
     status,
@@ -31,90 +24,96 @@ export default function Login({
     };
 
     return (
-        <GuestLayout>
+        <>
             <Head title="Log in" />
 
-            <Card
-                className="mx-auto w-full max-w-md"
-                style={{
-                    borderRadius: 16,
-                    borderColor: '#dbe4f5',
-                    boxShadow: '0 22px 56px rgba(37, 99, 235, 0.1)',
-                    background: 'rgba(255,255,255,0.94)',
-                }}
-            >
-                <div className="mb-6">
-                    <Title level={3} className="brand-title !mb-1 text-center !text-slate-900">
-                        Welcome
-                    </Title>
-                    <Paragraph className="!mb-0 text-center !text-slate-600">
-                        Sign in to continue managing your internship time records.
-                    </Paragraph>
-                </div>
-
-                {status && (
-                    <Alert className="mb-4" type="success" message={status} showIcon />
-                )}
-
-                <form onSubmit={submit}>
-                    <div className="mb-4">
-                        <InputLabel htmlFor="credential" value="Email or Student Number" />
-
-                        <TextInput
-                            id="credential"
-                            type="text"
-                            name="credential"
-                            value={data.credential}
-                            onChange={(e) => setData('credential', e.target.value)}
-                            placeholder="Enter your email or student number"
-                            className="mt-1 block w-full"
-                            autoFocus
-                        />
-
-                        <InputError message={errors.credential} className="mt-2" />
-                    </div>
-
-                    <div className="mb-4">
-                        <InputLabel htmlFor="password" value="Password" />
-
-                        <TextInput
-                            id="password"
-                            type="password"
-                            name="password"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Enter your password"
-                            className="mt-1 block w-full"
-                        />
-
-                        <InputError message={errors.password} className="mt-2" />
-                    </div>
-
-                    <div className="mb-4 flex items-center">
-                        <label className="flex items-center">
-                            <Checkbox
-                                checked={data.remember}
-                                onChange={(e) => setData('remember', e.target.checked)}
+            <div className="login-shell">
+                <div className="login-layout">
+                    <section className="login-visual" aria-hidden="true">
+                        <div className="login-visual-art">
+                            <img
+                                src="/images/login-side.png"
+                                alt="Login visual"
+                                className="login-visual-image"
                             />
-                            <span className="ms-2 text-sm text-slate-600">
-                                Remember me
-                            </span>
-                        </label>
-                    </div>
+                            <div className="login-visual-fade" />
+                        </div>
+                    </section>
 
-                    <div className="flex items-center justify-between mt-6">
-                        {canResetPassword && (
-                            <Link href={route('password.request')} className="text-sm font-semibold text-blue-700 hover:text-blue-900">
-                                Forgot password?
-                            </Link>
-                        )}
+                    <section className="login-panel">
+                        <div className="login-panel-inner">
+                            <p className="login-brand">
+                                <span>DTR & PAYROLL</span>
+                            </p>
 
-                        <PrimaryButton disabled={processing}>
-                            {processing ? 'Logging in...' : 'Login'}
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </Card>
-        </GuestLayout>
+                            {status && <div className="login-status">{status}</div>}
+
+                            <form onSubmit={submit} className="login-form">
+                                <div className="login-field">
+                                    <label htmlFor="credential" className="login-label">
+                                        Email
+                                    </label>
+                                    <input
+                                        id="credential"
+                                        type="text"
+                                        name="credential"
+                                        value={data.credential}
+                                        onChange={(e) => setData('credential', e.target.value)}
+                                        placeholder="email"
+                                        className="login-input"
+                                        autoComplete="username"
+                                        autoFocus
+                                    />
+                                    <InputError message={errors.credential} className="mt-2" />
+                                </div>
+
+                                <div className="login-field">
+                                    <label htmlFor="password" className="login-label">
+                                        Password
+                                    </label>
+                                    <input
+                                        id="password"
+                                        type="password"
+                                        name="password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        placeholder="password"
+                                        className="login-input"
+                                        autoComplete="current-password"
+                                    />
+                                    <InputError message={errors.password} className="mt-2" />
+                                </div>
+
+                                <div className="login-meta">
+                                    <label className="login-remember">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.remember}
+                                            onChange={(e) => setData('remember', e.target.checked)}
+                                            className="login-checkbox"
+                                        />
+                                        <span>Remember me</span>
+                                    </label>
+
+                                    {canResetPassword && (
+                                        <Link href={route('password.request')} className="login-link">
+                                            Forgot your password?
+                                        </Link>
+                                    )}
+                                </div>
+
+                                <button type="submit" className="login-submit" disabled={processing}>
+                                    {processing ? 'Logging in...' : 'Log in'}
+                                </button>
+                            </form>
+
+                            <p className="login-footer-note">
+                                Need access? Reach out to your system administrator.
+                            </p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </>
     );
 }

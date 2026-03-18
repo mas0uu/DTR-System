@@ -234,10 +234,10 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
             theme={{
                 algorithm: theme.defaultAlgorithm,
                 token: {
-                    colorPrimary: '#2563eb',
+                    colorPrimary: '#00415f',
                     borderRadius: 10,
                     fontSize: 13,
-                    fontFamily: 'Segoe UI, Tahoma, Verdana, sans-serif',
+                    fontFamily: 'Manrope, Segoe UI, Tahoma, Verdana, sans-serif',
                 },
                 components: {
                     Layout: {
@@ -245,11 +245,11 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         colorBgBody: 'transparent',
                     },
                     Menu: {
-                        itemBg: '#ffffff',
-                        itemSelectedBg: '#eff6ff',
-                        itemSelectedColor: '#1d4ed8',
+                        itemBg: '#f8fbfc',
+                        itemSelectedBg: '#e6f2f6',
+                        itemSelectedColor: '#00415f',
                         itemColor: '#334155',
-                        itemHoverBg: '#f8fafc',
+                        itemHoverBg: '#f1f7f9',
                         itemHoverColor: '#0f172a',
                         itemHeight: 38,
                     },
@@ -261,25 +261,18 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     width={236}
                     theme="light"
                     className="hidden lg:block"
-                    style={{ borderRight: '1px solid #d1d5db', background: '#fff' }}
+                    style={{ borderRight: '1px solid #d7e3e8', background: '#f8fbfc' }}
                 >
                     <div className="px-4 py-5">
-                        <Link href={isAdmin ? route('admin.employees.index') : route('dtr.index')}>
-                            <Button
-                                type="text"
-                                className="liquid-pill w-full justify-start"
-                                icon={<FileTextOutlined style={{ fontSize: '18px' }} />}
-                                style={{
-                                    height: '38px',
-                                    borderRadius: '10px',
-                                    color: '#0f172a',
-                                    fontSize: '15px',
-                                    fontWeight: 600,
-                                    paddingInline: '12px',
-                                }}
-                            >
-                                DTR System
-                            </Button>
+                        <Link
+                            href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
+                            className="block border border-[#d7e3e8] bg-white p-3 shadow-sm transition hover:border-[#4BB9D2]"
+                        >
+                            <img
+                                src="/images/doxsys-logo-full.png"
+                                alt="Doxsys"
+                                className="h-8 w-auto object-contain"
+                            />
                         </Link>
                     </div>
 
@@ -288,7 +281,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                             mode="inline"
                             selectedKeys={selectedNavKey ? [selectedNavKey] : []}
                             items={buildMenuItems(false)}
-                            style={{ borderInlineEnd: 0, background: '#fff' }}
+                            style={{ borderInlineEnd: 0, background: '#f8fbfc' }}
                         />
                     </div>
                 </Sider>
@@ -314,29 +307,33 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                                 gap: '12px',
                             }}
                         >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2.5">
                                 <Button
                                     className="lg:hidden"
                                     type="text"
                                     icon={<MenuOutlined />}
                                     onClick={() => setMobileNavOpen(true)}
                                 />
+                                <img
+                                    src="/images/doxsys-logo-icon.png"
+                                    alt="Doxsys"
+                                    className="hidden h-7 w-auto object-contain sm:block"
+                                />
                                 <span className="text-base font-semibold text-slate-900">{pageTitle}</span>
                             </div>
 
                             <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight" trigger={['click']}>
                                 <Space style={{ cursor: 'pointer' }}>
-                                    <Avatar size={32} style={{ background: '#2563eb' }}>
-                                        {profilePhotoSrc && !avatarImageError ? (
-                                            <img
-                                                src={profilePhotoSrc}
-                                                alt={`${displayName} profile photo`}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                onError={() => setAvatarImageError(true)}
-                                            />
-                                        ) : (
-                                            avatarInitials
-                                        )}
+                                    <Avatar
+                                        size={32}
+                                        style={{ background: '#00415f', overflow: 'hidden' }}
+                                        src={profilePhotoSrc && !avatarImageError ? profilePhotoSrc : undefined}
+                                        onError={() => {
+                                            setAvatarImageError(true);
+                                            return false;
+                                        }}
+                                    >
+                                        {avatarInitials}
                                     </Avatar>
                                     <span style={{ fontSize: '14px', fontWeight: 500, color: '#0f172a' }}>
                                         {displayName}
@@ -376,10 +373,16 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                 bodyStyle={{ padding: 12 }}
             >
                 <div className="mb-3">
-                    <Link href={isAdmin ? route('admin.employees.index') : route('dtr.index')} onClick={() => setMobileNavOpen(false)}>
-                        <Button type="text" className="liquid-pill w-full justify-start" icon={<FileTextOutlined />}>
-                            DTR System
-                        </Button>
+                    <Link
+                        href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
+                        onClick={() => setMobileNavOpen(false)}
+                        className="block border border-[#d7e3e8] bg-white p-3"
+                    >
+                        <img
+                            src="/images/doxsys-logo-full.png"
+                            alt="Doxsys"
+                            className="h-8 w-auto object-contain"
+                        />
                     </Link>
                 </div>
                 <Menu
