@@ -17,8 +17,9 @@ WORKDIR /var/www/html
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip pkg-config libonig-dev libicu-dev libpq-dev libzip-dev libxml2-dev \
-    && docker-php-ext-install bcmath dom intl mbstring pdo_pgsql xml zip \
+    && apt-get install -y --no-install-recommends ca-certificates curl git unzip pkg-config libcurl4-openssl-dev libonig-dev libicu-dev libpq-dev libzip-dev libxml2-dev \
+    && update-ca-certificates \
+    && docker-php-ext-install bcmath curl dom intl mbstring pdo_pgsql xml zip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
