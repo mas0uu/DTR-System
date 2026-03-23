@@ -17,7 +17,7 @@ WORKDIR /var/www/html
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git unzip libicu-dev libpq-dev libzip-dev \
+    && apt-get install -y --no-install-recommends git unzip pkg-config libonig-dev libicu-dev libpq-dev libzip-dev \
     && docker-php-ext-install bcmath intl mbstring pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 
