@@ -11,7 +11,7 @@ COPY public ./public
 COPY postcss.config.js tailwind.config.js tsconfig.json vite.config.js ./
 RUN npm run build
 
-FROM php:8.3-cli-bookworm
+FROM php:8.4-cli-bookworm
 WORKDIR /var/www/html
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
