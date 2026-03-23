@@ -88,6 +88,7 @@ This repository includes a Render Blueprint (`render.yaml`) and Docker setup for
 3. Connect your repository and select this project's `render.yaml`.
 4. During setup, provide:
    - `APP_URL` = your final Render URL or custom domain (for example `https://your-app.onrender.com`)
+   - `APP_KEY` = output of `php artisan key:generate --show` (must be Laravel key format like `base64:...`)
 5. Deploy the Blueprint.
 
 What gets created:
