@@ -19,4 +19,4 @@ until php artisan migrate --force; do
   sleep 5
 done
 
-exec php artisan serve --host=0.0.0.0 --port="${PORT:-10000}"
+exec php -S "0.0.0.0:${PORT:-10000}" -t public public/router.php
