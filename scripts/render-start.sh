@@ -7,7 +7,7 @@ php artisan storage:link || true
 
 attempt=1
 max_attempts=10
-until php artisan migrate --force --graceful; do
+until php artisan migrate --force; do
   if [ "$attempt" -ge "$max_attempts" ]; then
     echo "Migrations failed after ${max_attempts} attempts."
     exit 1

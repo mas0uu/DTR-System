@@ -98,7 +98,7 @@ What gets created:
 The container startup script (`scripts/render-start.sh`) will:
 - Create Laravel runtime folders
 - Ensure `storage` symlink exists
-- Run `php artisan migrate --force --graceful`
+- Run `php artisan migrate --force`
 - Start the app on Render's assigned `PORT`
 
 ### Important production note
