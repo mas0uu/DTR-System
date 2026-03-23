@@ -16,7 +16,13 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            DtrSeeder::class,
+            StarterAccountsSeeder::class,
         ]);
+
+        if (app()->environment('local')) {
+            $this->call([
+                DtrSeeder::class,
+            ]);
+        }
     }
 }
