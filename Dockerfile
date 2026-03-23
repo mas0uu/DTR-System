@@ -31,7 +31,8 @@ COPY . .
 COPY --from=assets /app/public/build ./public/build
 COPY scripts/render-start.sh /usr/local/bin/render-start.sh
 
-RUN php artisan package:discover --ansi
+RUN composer dump-autoload --optimize --no-dev --no-interaction \
+    && php artisan package:discover --ansi
 
 RUN sed -i 's/\r$//' /usr/local/bin/render-start.sh \
     && chmod +x /usr/local/bin/render-start.sh \
