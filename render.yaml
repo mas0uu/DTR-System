@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: dtr-web-app
+    runtime: docker
+    region: singapore
+    plan: free
+    autoDeployTrigger: commit
+    healthCheckPath: /up
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_NAME
+        value: DTR Web App
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        sync: false
+      - key: APP_KEY
+        generateValue: true
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: dtr-postgres
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: DTR_GRACE_MINUTES
+        value: "30"
+
+databases:
+  - name: dtr-postgres
+    region: singapore
+    plan: free
