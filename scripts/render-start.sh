@@ -19,4 +19,8 @@ until php artisan migrate --force; do
   sleep 5
 done
 
+if [ "${AUTO_SEED_STARTER_ACCOUNTS:-false}" = "true" ]; then
+  php artisan db:seed --class='Database\\Seeders\\StarterAccountsSeeder' --force
+fi
+
 exec php -S "0.0.0.0:${PORT:-10000}" -t public public/router.php
