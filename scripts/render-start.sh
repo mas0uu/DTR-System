@@ -3,6 +3,7 @@ set -eu
 
 mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
 
+php artisan optimize:clear
 php artisan storage:link || true
 
 attempt=1
