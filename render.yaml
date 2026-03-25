@@ -36,6 +36,12 @@ services:
         value: "30"
       - key: AUTO_SEED_STARTER_ACCOUNTS
         value: "true"
+      - key: STARTER_ACCOUNTS_ALLOW_ON_NON_EMPTY_DB
+        value: "false"
+      - key: STARTER_ACCOUNTS_FORCE_RESET
+        value: "false"
+      - key: STARTER_ACCOUNTS_PASSWORD
+        sync: false
 
 databases:
   - name: dtr-postgres

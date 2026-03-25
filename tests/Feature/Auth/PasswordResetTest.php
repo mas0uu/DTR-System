@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\PasswordResetRequest;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
@@ -21,53 +21,73 @@ class PasswordResetTest extends TestCase
 
     public function test_reset_password_link_can_be_requested(): void
     {
-        Notification::fake();
+        $user = User::factory()->create([
+            'email' => 'employee@doxsys.com',
+        ]);
 
-        $user = User::factory()->create();
+        $response = $this->post('/forgot-password', ['credential' => $user->email]);
 
-        $this->post('/forgot-password', ['email' => $user->email]);
-
-        Notification::assertSentTo($user, ResetPassword::class);
+        $response->assertSessionHas('status');
+        $this->assertDatabaseHas('password_reset_requests', [
+            'user_id' => $user->id,
+            'status' => PasswordResetRequest::STATUS_PENDING,
+            'credential_snapshot' => $user->email,
+        ]);
     }
 
-    public function test_reset_password_screen_can_be_rendered(): void
+    public function test_reset_password_request_can_be_submitted_using_student_number(): void
     {
-        Notification::fake();
-
         $user = User::factory()->create();
+        $user->update([
+            'student_no' => 'INTERN100',
+        ]);
 
-        $this->post('/forgot-password', ['email' => $user->email]);
+        $response = $this->post('/forgot-password', [
+            'credential' => 'INTERN100',
+            'request_note' => 'Cannot access account',
+        ]);
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-            $response = $this->get('/reset-password/'.$notification->token);
-
-            $response->assertStatus(200);
-
-            return true;
-        });
+        $response->assertSessionHas('status');
+        $this->assertDatabaseHas('password_reset_requests', [
+            'user_id' => $user->id,
+            'credential_snapshot' => 'INTERN100',
+            'request_note' => 'Cannot access account',
+            'status' => PasswordResetRequest::STATUS_PENDING,
+        ]);
     }
 
-    public function test_password_can_be_reset_with_valid_token(): void
+    public function test_reset_password_request_returns_generic_message_for_unknown_account(): void
     {
-        Notification::fake();
+        $response = $this->post('/forgot-password', [
+            'credential' => 'ghost@doxsys.com',
+        ]);
 
-        $user = User::factory()->create();
+        $response->assertSessionHas('status');
+        $this->assertDatabaseCount('password_reset_requests', 0);
+    }
 
-        $this->post('/forgot-password', ['email' => $user->email]);
+    public function test_admin_can_approve_reset_request_and_force_password_change(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create([
+            'password' => Hash::make('old-password'),
+        ]);
+        $resetRequest = PasswordResetRequest::query()->create([
+            'user_id' => $user->id,
+            'credential_snapshot' => $user->email,
+            'status' => PasswordResetRequest::STATUS_PENDING,
+        ]);
 
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-            $response = $this->post('/reset-password', [
-                'token' => $notification->token,
-                'email' => $user->email,
-                'password' => 'password',
-                'password_confirmation' => 'password',
-            ]);
+        $response = $this->actingAs($admin)->patch(route('admin.password_reset_requests.approve', $resetRequest->id));
 
-            $response
-                ->assertSessionHasNoErrors()
-                ->assertRedirect(route('login'));
-
-            return true;
-        });
+        $response
+            ->assertRedirect(route('admin.password_reset_requests.index'))
+            ->assertSessionHas('success');
+        $this->assertDatabaseHas('password_reset_requests', [
+            'id' => $resetRequest->id,
+            'status' => PasswordResetRequest::STATUS_APPROVED,
+            'reviewed_by' => $admin->id,
+        ]);
+        $this->assertTrue((bool) $user->fresh()->must_change_password);
     }
 }

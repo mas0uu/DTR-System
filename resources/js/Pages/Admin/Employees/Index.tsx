@@ -32,10 +32,11 @@ type Props = AppPageProps<{
     flash?: {
         success?: string;
     };
+    errors?: Record<string, string>;
 }>;
 
 export default function EmployeesIndex() {
-    const { employees, flash } = usePage<Props>().props;
+    const { employees, flash, errors } = usePage<Props>().props;
     const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee' | 'intern'>('all');
 
     const filteredEmployees = useMemo(
@@ -58,6 +59,14 @@ export default function EmployeesIndex() {
         () => employees.filter((employee) => employee.role === 'admin').length,
         [employees],
     );
+    const firstError = useMemo(() => {
+        if (!errors) {
+            return null;
+        }
+
+        const entries = Object.values(errors).filter((value) => typeof value === 'string' && value.trim() !== '');
+        return entries.length > 0 ? entries[0] : null;
+    }, [errors]);
 
     return (
         <>
@@ -81,6 +90,7 @@ export default function EmployeesIndex() {
             />
 
             {flash?.success && <Alert type="success" message={flash.success} showIcon className="mb-4" />}
+            {firstError && <Alert type="error" message={firstError} showIcon className="mb-4" />}
 
             <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
                 <MetricCard label="Total Users" value={employees.length} />

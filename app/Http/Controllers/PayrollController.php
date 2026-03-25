@@ -155,6 +155,17 @@ class PayrollController extends Controller
                 'error' => 'This payroll period is locked for review/finalization and cannot be regenerated.',
             ], 422);
         }
+        $overlappingRecord = $this->findOverlappingRecord($user->id, $periodStart, $periodEnd);
+        if ($overlappingRecord) {
+            return response()->json([
+                'error' => sprintf(
+                    'This payroll period overlaps with existing period %s to %s (status: %s).',
+                    $overlappingRecord->pay_period_start->format('Y-m-d'),
+                    $overlappingRecord->pay_period_end->format('Y-m-d'),
+                    $overlappingRecord->status
+                ),
+            ], 422);
+        }
 
         $computed = $calculator->calculate($user, $periodStart, $periodEnd);
         $snapshot = [
@@ -277,5 +288,19 @@ class PayrollController extends Controller
             'is_read_only' => true,
             'finalized_at' => optional($record->finalized_at)?->toDateTimeString(),
         ];
+    }
+
+    private function findOverlappingRecord(int $userId, Carbon $periodStart, Carbon $periodEnd): ?PayrollRecord
+    {
+        return PayrollRecord::query()
+            ->where('user_id', $userId)
+            ->whereDate('pay_period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('pay_period_end', '>=', $periodStart->toDateString())
+            ->where(function ($query) use ($periodStart, $periodEnd) {
+                $query->whereDate('pay_period_start', '!=', $periodStart->toDateString())
+                    ->orWhereDate('pay_period_end', '!=', $periodEnd->toDateString());
+            })
+            ->orderByDesc('pay_period_end')
+            ->first();
     }
 }

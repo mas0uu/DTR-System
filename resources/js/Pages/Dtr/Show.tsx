@@ -694,7 +694,7 @@ export default function DtrShow({
                 <div className="print-root">
                     <h2 style={{ textAlign: 'center' }}>DAILY TIME RECORD - {month.monthName.toUpperCase()}</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: 10 }}>
-                        <div><strong>Name:</strong> {user.student_name || '-'}</div>
+                        <div><strong>Name:</strong> {user.student_name || user.name || '-'}</div>
                         <div><strong>Employee Type:</strong> {user.employee_type === 'intern' ? 'Intern' : 'Regular Employee'}</div>
                         <div><strong>Department:</strong> {user.department || '-'}</div>
                         <div><strong>Company:</strong> {user.company || '-'}</div>

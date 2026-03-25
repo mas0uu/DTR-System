@@ -1,9 +1,9 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link } from '@inertiajs/react';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { useThemeMode } from '@/lib/theme';
 
-export default function Guest({ children }: PropsWithChildren) {
+export default function Guest({ children, topLeft }: PropsWithChildren<{ topLeft?: ReactNode }>) {
     const { themeMode, toggleTheme } = useThemeMode();
 
     return (
@@ -11,7 +11,8 @@ export default function Guest({ children }: PropsWithChildren) {
 
             <div className="relative mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-8 sm:px-6">
                 <div className="glass-panel w-full p-4 sm:p-6">
-                    <div className="mb-3 flex justify-end">
+                    <div className={`mb-3 flex items-center ${topLeft ? 'justify-between' : 'justify-end'}`}>
+                        {topLeft ? <div>{topLeft}</div> : null}
                         <button type="button" className="theme-toggle-btn" onClick={toggleTheme}>
                             {themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
                         </button>

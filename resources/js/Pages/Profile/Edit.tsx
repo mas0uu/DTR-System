@@ -3,13 +3,13 @@ import InputError from '@/Components/InputError';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Avatar, Button, Space, Tag } from 'antd';
+import { Alert, Avatar, Button, Space, Tag } from 'antd';
 import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
 export default function Edit() {
-    const { auth } = usePage<AppPageProps>().props;
+    const { auth, flash } = usePage<AppPageProps & { flash?: { success?: string } }>().props;
     const user = auth.user;
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
@@ -121,6 +121,13 @@ export default function Edit() {
                     title="Profile"
                     subtitle="Manage your personal information and account settings."
                 />
+                {flash?.success && (
+                    <Alert
+                        type="info"
+                        showIcon
+                        message={flash.success}
+                    />
+                )}
 
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
                     <div className="space-y-6 xl:col-span-4">

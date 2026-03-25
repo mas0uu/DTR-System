@@ -89,6 +89,11 @@ This repository includes a Render Blueprint (`render.yaml`) and Docker setup for
 4. During setup, provide:
    - `APP_URL` = your final Render URL or custom domain (for example `https://your-app.onrender.com`)
    - `APP_KEY` = output of `php artisan key:generate --show` (must be Laravel key format like `base64:...`)
+   - Optional starter account vars:
+     - `AUTO_SEED_STARTER_ACCOUNTS=true` (run starter seeder on boot)
+     - `STARTER_ACCOUNTS_ALLOW_ON_NON_EMPTY_DB=false` (recommended; prevents re-seeding once users exist)
+     - `STARTER_ACCOUNTS_PASSWORD=<your-temp-password>` (used only when creating starter accounts)
+     - `STARTER_ACCOUNTS_FORCE_RESET=false` (set to `true` only if you intentionally want to overwrite starter account passwords)
 5. Deploy the Blueprint.
 
 What gets created:
@@ -100,6 +105,7 @@ The container startup script (`scripts/render-start.sh`) will:
 - Create Laravel runtime folders
 - Ensure `storage` symlink exists
 - Run `php artisan migrate --force`
+- Optionally seed starter accounts (guarded by env vars)
 - Start the app on Render's assigned `PORT`
 
 ### Important production note

@@ -51,8 +51,8 @@ class DtrMonthController extends Controller
                         ->where('total_minutes', '>', 0);
                 },
             ], 'total_minutes')
-            ->orderBy('year')
-            ->orderBy('month')
+            ->orderByDesc('year')
+            ->orderByDesc('month')
             ->get()
             ->map(function ($month) {
                 $finishedMinutes = (int) round((float) ($month->finished_total_minutes ?? 0));

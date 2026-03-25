@@ -301,6 +301,9 @@ export default function AdminPayrollIndex() {
                 )}
             >
                 <Table
+                    className="admin-payroll-records-table"
+                    size="small"
+                    tableLayout="fixed"
                     rowKey="id"
                     dataSource={filteredPayrollRecords}
                     pagination={{ pageSize: 10 }}
@@ -309,60 +312,82 @@ export default function AdminPayrollIndex() {
                             title: 'Employee',
                             key: 'employee',
                             render: (_, row) => (
-                                <Space direction="vertical" size={0}>
+                                <div className="payroll-cell-stack">
                                     <span>{row.employee_name}</span>
-                                    <span className="text-xs text-gray-500">{row.employee_email}</span>
-                                </Space>
+                                    <span className="payroll-cell-muted">{row.employee_email}</span>
+                                </div>
                             ),
                         },
                         {
                             title: 'Period',
                             key: 'period',
-                            render: (_, row) => `${row.pay_period_start} to ${row.pay_period_end}`,
+                            render: (_, row) => (
+                                <div className="payroll-cell-stack">
+                                    <span>{row.pay_period_start}</span>
+                                    <span className="payroll-cell-muted">to {row.pay_period_end}</span>
+                                </div>
+                            ),
                         },
                         {
                             title: 'Rate',
                             key: 'rate',
-                            render: (_, row) => `${row.salary_type.toUpperCase()} / PHP ${row.salary_amount.toFixed(2)}`,
+                            responsive: ['lg'],
+                            render: (_, row) => (
+                                <div className="payroll-cell-stack">
+                                    <span>{row.salary_type.toUpperCase()}</span>
+                                    <span>PHP {row.salary_amount.toFixed(2)}</span>
+                                </div>
+                            ),
                         },
                         {
                             title: 'Work Summary',
                             key: 'work_summary',
-                            render: (_, row) => `Days ${row.days_worked.toFixed(2)} | Hours ${row.hours_worked.toFixed(2)} | Abs ${row.absences}`,
+                            render: (_, row) => (
+                                <div className="payroll-cell-stack">
+                                    <span>Days: {row.days_worked.toFixed(2)}</span>
+                                    <span>Hours: {row.hours_worked.toFixed(2)}</span>
+                                    <span>Abs: {row.absences}</span>
+                                </div>
+                            ),
                         },
                         {
                             title: 'Earnings Breakdown',
                             key: 'earnings_breakdown',
+                            responsive: ['xl'],
                             render: (_, row) => (
-                                <span>
-                                    Base PHP {row.base_pay.toFixed(2)} | Paid Leave PHP {row.paid_leave_pay.toFixed(2)} | Holiday Base PHP {row.paid_holiday_base_pay.toFixed(2)} | Holiday Bonus PHP {row.holiday_attendance_bonus.toFixed(2)}
-                                </span>
+                                <div className="payroll-cell-stack">
+                                    <span>Base: PHP {row.base_pay.toFixed(2)}</span>
+                                    <span>Paid Leave: PHP {row.paid_leave_pay.toFixed(2)}</span>
+                                    <span>Holiday Base: PHP {row.paid_holiday_base_pay.toFixed(2)}</span>
+                                    <span>Holiday Bonus: PHP {row.holiday_attendance_bonus.toFixed(2)}</span>
+                                </div>
                             ),
                         },
                         {
                             title: 'Adjustments',
                             key: 'adjustments',
+                            responsive: ['xl'],
                             render: (_, row) => (
-                                <Space>
+                                <div className="payroll-tags-stack">
                                     <Tag>Undertime: {row.undertime_minutes}m</Tag>
                                     <Tag>Half-day: {row.half_days}</Tag>
                                     <Tag color="red">Deductions: PHP {row.total_deductions.toFixed(2)}</Tag>
-                                </Space>
+                                </div>
                             ),
                         },
                         {
                             title: 'Status',
                             key: 'status',
                             render: (_, row) => (
-                                <Space direction="vertical" size={2}>
+                                <Space direction="vertical" size={2} className="payroll-cell-stack">
                                     <Tag color={statusColor(row.status)}>{row.status.toUpperCase()}</Tag>
                                     {row.status === 'reviewed' && (
-                                        <span className="text-xs text-gray-500">
+                                        <span className="payroll-cell-muted">
                                             {row.reviewed_by || 'Unknown'} {row.reviewed_at ? `(${row.reviewed_at})` : ''}
                                         </span>
                                     )}
                                     {row.status === 'finalized' && (
-                                        <span className="text-xs text-gray-500">
+                                        <span className="payroll-cell-muted">
                                             {row.finalized_by || 'Unknown'} {row.finalized_at ? `(${row.finalized_at})` : ''}
                                         </span>
                                     )}
@@ -377,9 +402,8 @@ export default function AdminPayrollIndex() {
                         {
                             title: 'Actions',
                             key: 'actions',
-                            width: 430,
                             render: (_, row) => (
-                                <Space wrap>
+                                <Space direction="vertical" size={6} className="payroll-actions">
                                     {row.status === 'generated' && (
                                         <Button
                                             size="small"

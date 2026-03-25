@@ -75,6 +75,41 @@ export default function PayslipShow() {
                     size: A4;
                     margin: 14mm;
                 }
+                html.theme-dark .payslip-page {
+                    color: #0f172a !important;
+                }
+                html.theme-dark .payslip-page .bg-white {
+                    background: #ffffff !important;
+                }
+                html.theme-dark .payslip-page .bg-slate-100 {
+                    background: #f1f5f9 !important;
+                }
+                html.theme-dark .payslip-page .bg-slate-50 {
+                    background: #f8fafc !important;
+                }
+                html.theme-dark .payslip-page .border-slate-200 {
+                    border-color: #e2e8f0 !important;
+                }
+                html.theme-dark .payslip-page .border-slate-900 {
+                    border-color: #0f172a !important;
+                }
+                html.theme-dark .payslip-page .text-slate-900,
+                html.theme-dark .payslip-page .text-slate-800,
+                html.theme-dark .payslip-page .text-slate-700,
+                html.theme-dark .payslip-page .text-slate-600,
+                html.theme-dark .payslip-page .text-slate-500 {
+                    color: #0f172a !important;
+                }
+                html.theme-dark .payslip-page .text-xs,
+                html.theme-dark .payslip-page .text-sm,
+                html.theme-dark .payslip-page .text-base {
+                    color: #0f172a !important;
+                }
+                html.theme-dark .payslip-page .ant-btn:not(.ant-btn-primary) {
+                    background: #ffffff !important;
+                    border-color: #cbd5e1 !important;
+                    color: #0f172a !important;
+                }
                 @media print {
                     .no-print {
                         display: none !important;
@@ -91,7 +126,7 @@ export default function PayslipShow() {
                 }
             `}</style>
 
-            <div className="min-h-screen bg-slate-100 p-4 sm:p-6">
+            <div className="payslip-page min-h-screen bg-slate-100 p-4 sm:p-6">
                 <div className="no-print mx-auto mb-4 flex w-full max-w-4xl items-center justify-between rounded-md bg-white px-4 py-3 shadow-sm">
                     <Space wrap>
                         <Link href={role === 'admin' ? route('admin.payroll.index') : route('payroll.index')}>

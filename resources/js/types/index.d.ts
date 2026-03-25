@@ -27,6 +27,7 @@ export interface User {
     leave_reset_day?: number | null;
     last_leave_refresh_year?: number | null;
     is_admin?: boolean;
+    must_change_password?: boolean;
     profile_photo_url?: string | null;
     profile_photo_path?: string | null;
     employment_status?: 'active' | 'inactive' | 'archived';

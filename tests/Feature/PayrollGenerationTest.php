@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DtrMonth;
 use App\Models\DtrRow;
+use App\Models\PayrollRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -68,7 +69,7 @@ class PayrollGenerationTest extends TestCase
         $response->assertJsonPath('data.days_worked', 1.5);
         $response->assertJsonPath('data.hours_worked', 13.5);
         $response->assertJsonPath('data.undertime_minutes', 270);
-        $response->assertJsonPath('data.half_days', 0);
+        $response->assertJsonPath('data.half_days', 1);
         $response->assertJsonPath('data.total_salary', 3409.09);
 
         $this->assertDatabaseHas('payroll_records', [
@@ -105,5 +106,54 @@ class PayrollGenerationTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonPath('error', 'Payroll period must be within a single calendar month.');
+    }
+
+    public function test_user_cannot_generate_overlapping_payroll_periods(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'employee_type' => 'regular',
+            'starting_date' => '2026-03-01',
+            'working_days' => [1, 2, 3, 4, 5],
+            'work_time_in' => '09:00',
+            'work_time_out' => '18:00',
+            'salary_type' => 'monthly',
+            'salary_amount' => 50000,
+        ]);
+
+        PayrollRecord::query()->create([
+            'user_id' => $user->id,
+            'pay_period_start' => '2026-03-01',
+            'pay_period_end' => '2026-03-15',
+            'salary_type' => 'monthly',
+            'salary_amount' => 50000,
+            'days_worked' => 10,
+            'hours_worked' => 80,
+            'absences' => 0,
+            'undertime_minutes' => 0,
+            'half_days' => 0,
+            'base_pay' => 10000,
+            'paid_leave_pay' => 0,
+            'paid_holiday_base_pay' => 0,
+            'holiday_attendance_bonus' => 0,
+            'leave_deductions' => 0,
+            'other_deductions' => 0,
+            'total_deductions' => 0,
+            'net_pay' => 10000,
+            'total_salary' => 10000,
+            'status' => 'generated',
+            'source' => 'self',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('payroll.generate'), [
+            'pay_period_start' => '2026-03-10',
+            'pay_period_end' => '2026-03-20',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath(
+            'error',
+            'This payroll period overlaps with existing period 2026-03-01 to 2026-03-15 (status: generated).'
+        );
     }
 }

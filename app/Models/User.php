@@ -24,6 +24,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'must_change_password',
         'student_name',
         'student_no',
         'school',
@@ -97,6 +98,7 @@ class User extends Authenticatable
             'last_leave_refresh_year' => 'integer',
             'is_admin' => 'boolean',
             'intern_compensation_enabled' => 'boolean',
+            'must_change_password' => 'boolean',
             'deactivated_at' => 'datetime',
             'archived_at' => 'datetime',
         ];

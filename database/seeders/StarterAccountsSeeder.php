@@ -12,11 +12,23 @@ class StarterAccountsSeeder extends Seeder
      */
     public function run(): void
     {
+        $forceReset = filter_var((string) env('STARTER_ACCOUNTS_FORCE_RESET', false), FILTER_VALIDATE_BOOLEAN);
+        $allowOnNonEmptyDatabase = filter_var((string) env('STARTER_ACCOUNTS_ALLOW_ON_NON_EMPTY_DB', false), FILTER_VALIDATE_BOOLEAN);
+        $defaultPassword = (string) env('STARTER_ACCOUNTS_PASSWORD', 'password123');
+
+        if (! $forceReset && ! $allowOnNonEmptyDatabase && User::query()->exists()) {
+            if ($this->command) {
+                $this->command->info('Starter accounts skipped: database already contains users.');
+            }
+
+            return;
+        }
+
         $accounts = [
             [
                 'email' => 'admin@example.com',
                 'name' => 'System Admin',
-                'password' => 'password123',
+                'password' => $defaultPassword,
                 'role' => User::ROLE_ADMIN,
                 'employment_status' => 'active',
                 'company' => 'DTR Web App',
@@ -24,7 +36,7 @@ class StarterAccountsSeeder extends Seeder
                 'supervisor_name' => 'Board',
                 'supervisor_position' => 'Owner',
                 'starting_date' => '2026-01-01',
-                'working_days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                'working_days' => [1, 2, 3, 4, 5],
                 'work_time_in' => '08:00:00',
                 'work_time_out' => '17:00:00',
                 'salary_type' => 'monthly',
@@ -36,7 +48,7 @@ class StarterAccountsSeeder extends Seeder
             [
                 'email' => 'employee@example.com',
                 'name' => 'Regular Employee',
-                'password' => 'password123',
+                'password' => $defaultPassword,
                 'role' => User::ROLE_EMPLOYEE,
                 'employment_status' => 'active',
                 'company' => 'DTR Web App',
@@ -44,7 +56,7 @@ class StarterAccountsSeeder extends Seeder
                 'supervisor_name' => 'System Admin',
                 'supervisor_position' => 'Admin',
                 'starting_date' => '2026-01-01',
-                'working_days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                'working_days' => [1, 2, 3, 4, 5],
                 'work_time_in' => '08:00:00',
                 'work_time_out' => '17:00:00',
                 'salary_type' => 'monthly',
@@ -56,7 +68,7 @@ class StarterAccountsSeeder extends Seeder
             [
                 'email' => 'intern@example.com',
                 'name' => 'Intern User',
-                'password' => 'password123',
+                'password' => $defaultPassword,
                 'role' => User::ROLE_INTERN,
                 'student_name' => 'Intern User',
                 'student_no' => 'INTERN100',
@@ -69,7 +81,7 @@ class StarterAccountsSeeder extends Seeder
                 'supervisor_name' => 'System Admin',
                 'supervisor_position' => 'Admin',
                 'starting_date' => '2026-01-01',
-                'working_days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                'working_days' => [1, 2, 3, 4, 5],
                 'work_time_in' => '08:00:00',
                 'work_time_out' => '17:00:00',
                 'salary_type' => 'hourly',
@@ -81,17 +93,30 @@ class StarterAccountsSeeder extends Seeder
         ];
 
         foreach ($accounts as $account) {
-            User::updateOrCreate(
+            if ($forceReset) {
+                User::updateOrCreate(
+                    ['email' => $account['email']],
+                    $account + ['email_verified_at' => now()]
+                );
+
+                continue;
+            }
+
+            User::firstOrCreate(
                 ['email' => $account['email']],
                 $account + ['email_verified_at' => now()]
             );
         }
 
         if ($this->command) {
-            $this->command->info('Starter accounts created/updated:');
-            $this->command->line('Admin: admin@example.com / password123');
-            $this->command->line('Employee: employee@example.com / password123');
-            $this->command->line('Intern: intern@example.com (or INTERN100) / password123');
+            $this->command->info($forceReset ? 'Starter accounts created/updated:' : 'Starter accounts ensured:');
+            $maskedPassword = str_repeat('*', max(8, strlen($defaultPassword)));
+            $this->command->line("Admin: admin@example.com / {$maskedPassword}");
+            $this->command->line("Employee: employee@example.com / {$maskedPassword}");
+            $this->command->line("Intern: intern@example.com (or INTERN100) / {$maskedPassword}");
+            if (! $forceReset) {
+                $this->command->line('Existing accounts keep their current password unless STARTER_ACCOUNTS_FORCE_RESET=true.');
+            }
         }
     }
 }

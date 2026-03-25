@@ -9,6 +9,7 @@ use App\Http\Controllers\AdminPayrollController;
 use App\Http\Controllers\AdminAttendanceController;
 use App\Http\Controllers\AdminAuditController;
 use App\Http\Controllers\AdminAnomalyController;
+use App\Http\Controllers\AdminPasswordResetRequestController;
 use App\Http\Controllers\AdminHolidayController;
 use App\Http\Controllers\AdminInternProgressController;
 use App\Http\Controllers\AdminLeaveController;
@@ -31,7 +32,7 @@ Route::get('/dashboard', function () {
         : redirect()->route('dtr.index');
 })->middleware(['auth'])->name('dashboard');
 
-Route::middleware(['auth', 'active_employee'])->group(function () {
+Route::middleware(['auth', 'force_password_change', 'active_employee'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
@@ -61,7 +62,7 @@ Route::middleware(['auth', 'active_employee'])->group(function () {
     Route::post('payroll/generate', [PayrollController::class, 'generate'])->name('payroll.generate');
 });
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'force_password_change', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('employees', [AdminEmployeeController::class, 'index'])->name('employees.index');
     Route::get('employees/create', [AdminEmployeeController::class, 'create'])->name('employees.create');
     Route::post('employees', [AdminEmployeeController::class, 'store'])->name('employees.store');
@@ -92,6 +93,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('holidays/{holiday}', [AdminHolidayController::class, 'update'])->name('holidays.update');
     Route::delete('holidays/{holiday}', [AdminHolidayController::class, 'destroy'])->name('holidays.destroy');
     Route::get('anomalies', [AdminAnomalyController::class, 'index'])->name('anomalies.index');
+    Route::get('security/password-resets', [AdminPasswordResetRequestController::class, 'index'])->name('password_reset_requests.index');
+    Route::patch('security/password-resets/{passwordResetRequest}/approve', [AdminPasswordResetRequestController::class, 'approve'])->name('password_reset_requests.approve');
+    Route::patch('security/password-resets/{passwordResetRequest}/reject', [AdminPasswordResetRequestController::class, 'reject'])->name('password_reset_requests.reject');
     Route::get('intern-progress', [AdminInternProgressController::class, 'index'])->name('intern_progress.index');
     Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
 });

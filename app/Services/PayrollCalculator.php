@@ -178,7 +178,7 @@ class PayrollCalculator
                     $undertimeMinutes += $expectedDailyMinutes - $rowMinutes;
                 }
 
-                if ($rowMinutes < ($expectedDailyMinutes / 2)) {
+                if ($rowMinutes <= (int) floor($expectedDailyMinutes * 0.5)) {
                     $halfDays++;
                 }
             } else {

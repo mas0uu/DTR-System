@@ -99,6 +99,13 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                 isActive: route().current('admin.anomalies.*'),
             },
             {
+                key: 'password-resets',
+                href: route('admin.password_reset_requests.index'),
+                label: 'Password Resets',
+                icon: <SettingOutlined />,
+                isActive: route().current('admin.password_reset_requests.*'),
+            },
+            {
                 key: 'leaves',
                 href: route('admin.leaves.index'),
                 label: 'Leave Requests',

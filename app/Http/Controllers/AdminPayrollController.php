@@ -116,13 +116,17 @@ class AdminPayrollController extends Controller
         if (! in_array($employee->salary_type, ['monthly', 'daily', 'hourly'], true)) {
             return redirect()
                 ->route('admin.payroll.index')
-                ->with('success', 'Payroll not generated: employee salary type is missing.');
+                ->withErrors([
+                    'payroll' => 'Payroll not generated: employee salary type is missing.',
+                ]);
         }
 
         if ($employee->salary_amount === null || (float) $employee->salary_amount <= 0) {
             return redirect()
                 ->route('admin.payroll.index')
-                ->with('success', 'Payroll not generated: employee salary amount is missing.');
+                ->withErrors([
+                    'payroll' => 'Payroll not generated: employee salary amount is missing.',
+                ]);
         }
 
         $timezone = 'Asia/Manila';
@@ -145,6 +149,19 @@ class AdminPayrollController extends Controller
                 ->route('admin.payroll.index')
                 ->withErrors([
                     'payroll' => 'This payroll period is '.$existing->status.' and cannot be regenerated directly.',
+                ]);
+        }
+        $overlappingRecord = $this->findOverlappingRecord($employee->id, $periodStart, $periodEnd);
+        if ($overlappingRecord) {
+            return redirect()
+                ->route('admin.payroll.index')
+                ->withErrors([
+                    'payroll' => sprintf(
+                        'This payroll period overlaps with existing period %s to %s (status: %s).',
+                        $overlappingRecord->pay_period_start->format('Y-m-d'),
+                        $overlappingRecord->pay_period_end->format('Y-m-d'),
+                        $overlappingRecord->status
+                    ),
                 ]);
         }
 
@@ -268,6 +285,16 @@ class AdminPayrollController extends Controller
 
             if ($existing && in_array($existing->status, ['reviewed', 'finalized'], true)) {
                 $skipped[] = "{$employee->name} ({$existing->status} and locked)";
+                continue;
+            }
+            $overlappingRecord = $this->findOverlappingRecord($employee->id, $periodStart, $periodEnd);
+            if ($overlappingRecord) {
+                $skipped[] = sprintf(
+                    '%s (overlaps %s to %s)',
+                    $employee->name,
+                    $overlappingRecord->pay_period_start->format('Y-m-d'),
+                    $overlappingRecord->pay_period_end->format('Y-m-d')
+                );
                 continue;
             }
 
@@ -562,5 +589,19 @@ class AdminPayrollController extends Controller
             'is_read_only' => true,
             'finalized_at' => optional($record->finalized_at)?->toDateTimeString(),
         ];
+    }
+
+    private function findOverlappingRecord(int $userId, Carbon $periodStart, Carbon $periodEnd): ?PayrollRecord
+    {
+        return PayrollRecord::query()
+            ->where('user_id', $userId)
+            ->whereDate('pay_period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('pay_period_end', '>=', $periodStart->toDateString())
+            ->where(function ($query) use ($periodStart, $periodEnd) {
+                $query->whereDate('pay_period_start', '!=', $periodStart->toDateString())
+                    ->orWhereDate('pay_period_end', '!=', $periodEnd->toDateString());
+            })
+            ->orderByDesc('pay_period_end')
+            ->first();
     }
 }

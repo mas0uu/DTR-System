@@ -74,8 +74,11 @@ class AdminAnomalyController extends Controller
                 );
             }
 
+            $isPastRow = $row->date->lt(Carbon::parse($today, $timezone));
+            $hasIncompletePair = ($row->time_in && ! $row->time_out) || (! $row->time_in && $row->time_out);
             $hasMissingLogs = ($row->status === 'finished' && (! $row->time_in || ! $row->time_out))
-                || (in_array($row->status, ['draft', 'missed'], true) && ! $row->time_in && ! $row->time_out && $row->date->lt(Carbon::parse($today, $timezone)));
+                || ($isPastRow && $hasIncompletePair)
+                || ($isPastRow && in_array($row->status, ['draft', 'missed', 'in_progress'], true) && ! $row->time_in && ! $row->time_out);
             if ($hasMissingLogs) {
                 $anomalies[] = $this->payload($row, $employee->name, $employee->email, 'missing_logs', 'Missing IN/OUT logs');
             }

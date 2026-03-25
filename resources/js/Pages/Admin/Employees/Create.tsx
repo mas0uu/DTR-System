@@ -24,7 +24,7 @@ export default function CreateEmployee() {
         school: '',
         required_hours: '',
         supervisor_name: '',
-        company: 'Boilerplate Test',
+        company: 'Doxsys Innovations',
         department: '',
         starting_date: '',
         working_days: [1, 2, 3, 4, 5] as number[],
@@ -70,7 +70,7 @@ export default function CreateEmployee() {
                                 setData('work_time_in', '09:00');
                                 setData('work_time_out', '18:00');
                                 setData('default_break_minutes', 60);
-                                setData('company', 'Boilerplate Test');
+                                setData('company', 'Doxsys Innovations');
                                 setData('intern_compensation_enabled', false);
                             },
                         });

@@ -59,7 +59,7 @@ export default function Login({
                             <form onSubmit={submit} className="login-form">
                                 <div className="login-field">
                                     <label htmlFor="credential" className="login-label">
-                                        Email
+                                        Email or Student Number
                                     </label>
                                     <input
                                         id="credential"
@@ -67,7 +67,7 @@ export default function Login({
                                         name="credential"
                                         value={data.credential}
                                         onChange={(e) => setData('credential', e.target.value)}
-                                        placeholder="email"
+                                        placeholder="email@example.com or INTERN100"
                                         className="login-input"
                                         autoComplete="username"
                                         autoFocus
