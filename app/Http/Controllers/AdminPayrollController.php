@@ -506,8 +506,8 @@ class AdminPayrollController extends Controller
 
     public function showPayslip(Request $request, PayrollRecord $payrollRecord): Response
     {
-        if ($payrollRecord->status !== 'finalized') {
-            abort(403, 'Payslip is available only for finalized payroll records.');
+        if (! in_array($payrollRecord->status, ['generated', 'reviewed', 'finalized'], true)) {
+            abort(403, 'Payroll view is not available for this record status.');
         }
 
         $payrollRecord->loadMissing('user:id,name,student_no,department,company,employee_type');

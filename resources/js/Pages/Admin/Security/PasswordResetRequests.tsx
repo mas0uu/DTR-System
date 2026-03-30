@@ -1,6 +1,7 @@
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { PageProps as AppPageProps } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Alert, Button, Modal, Popconfirm, Space, Table, Tag } from 'antd';
@@ -41,6 +42,7 @@ type Props = AppPageProps<{
 export default function PasswordResetRequests() {
     const { requests, flash, errors } = usePage<Props>().props;
     const [openedNote, setOpenedNote] = useState<{ title: string; content: string } | null>(null);
+    const [userSearch, setUserSearch] = useState('');
 
     const pendingCount = useMemo(
         () => requests.filter((item) => item.status === 'pending').length,
@@ -62,6 +64,18 @@ export default function PasswordResetRequests() {
         const values = Object.values(errors).filter((value) => typeof value === 'string' && value.trim() !== '');
         return values.length > 0 ? values[0] : null;
     }, [errors]);
+    const filteredRequests = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+        if (query === '') {
+            return requests;
+        }
+
+        return requests.filter((row) => (
+            (row.user.name || '').toLowerCase().includes(query)
+            || (row.user.email || '').toLowerCase().includes(query)
+            || (row.user.student_no || '').toLowerCase().includes(query)
+        ));
+    }, [requests, userSearch]);
 
     const handleApprove = (id: number) => {
         router.patch(route('admin.password_reset_requests.approve', id), {}, { preserveScroll: true });
@@ -105,10 +119,13 @@ export default function PasswordResetRequests() {
             <TableCard
                 title="Reset Queue"
                 subtitle="Approving a request generates a temporary password and forces password change on next login."
+                actions={(
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                )}
             >
                 <Table
                     rowKey="id"
-                    dataSource={requests}
+                    dataSource={filteredRequests}
                     pagination={{ pageSize: 12 }}
                     tableLayout="fixed"
                     columns={[

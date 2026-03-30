@@ -2,6 +2,7 @@ import { PageProps as AppPageProps } from '@/types';
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Alert, Button, Select, Space, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
@@ -108,6 +109,7 @@ export default function AdminPayrollIndex() {
         pay_period_end: defaultRange.end,
     });
     const [orderFilter, setOrderFilter] = useState<PayrollOrderType>('recent');
+    const [userSearch, setUserSearch] = useState('');
 
     useEffect(() => {
         if (data.pay_period_month === 'all') {
@@ -146,11 +148,17 @@ export default function AdminPayrollIndex() {
         ];
     }, [payroll_records]);
     const filteredPayrollRecords = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
         const monthFiltered = data.pay_period_month === 'all'
             ? payroll_records
             : payroll_records.filter((row) => dayjs(row.pay_period_start).format('YYYY-MM') === data.pay_period_month);
+        const userFiltered = monthFiltered.filter((row) => (
+            query === ''
+            || row.employee_name.toLowerCase().includes(query)
+            || row.employee_email.toLowerCase().includes(query)
+        ));
 
-        return [...monthFiltered].sort((a, b) => {
+        return [...userFiltered].sort((a, b) => {
             const aEnd = dayjs(a.pay_period_end).valueOf();
             const bEnd = dayjs(b.pay_period_end).valueOf();
             if (aEnd === bEnd) {
@@ -161,7 +169,7 @@ export default function AdminPayrollIndex() {
 
             return orderFilter === 'recent' ? bEnd - aEnd : aEnd - bEnd;
         });
-    }, [data.pay_period_month, orderFilter, payroll_records]);
+    }, [data.pay_period_month, orderFilter, payroll_records, userSearch]);
     const canGeneratePayroll = Boolean(data.employee_id) && data.pay_period_month !== 'all';
     const canGenerateAllPayroll = data.pay_period_month !== 'all';
 
@@ -288,6 +296,7 @@ export default function AdminPayrollIndex() {
                 title="Payroll Records"
                 actions={(
                     <Space wrap>
+                        <UserSearchControl value={userSearch} onChange={setUserSearch} />
                         <Select
                             style={{ width: 140 }}
                             value={orderFilter}
@@ -407,23 +416,34 @@ export default function AdminPayrollIndex() {
                                     {row.status === 'generated' && (
                                         <Button
                                             size="small"
+                                            className="payroll-review-btn"
                                             onClick={() => router.patch(route('admin.payroll.review', row.id))}
                                         >
                                             Mark Reviewed
                                         </Button>
                                     )}
-                                    {row.status !== 'finalized' && (
-                                        <Button
-                                            size="small"
-                                            type="primary"
-                                            onClick={() => {
-                                                const reason = window.prompt('Finalization reason (required):');
-                                                if (!reason) return;
-                                                router.patch(route('admin.payroll.finalize', row.id), { lock_reason: reason });
-                                            }}
-                                        >
-                                            Finalize
-                                        </Button>
+                                    <Link href={route('admin.payroll.payslip.view', row.id)}>
+                                        <Button size="small">View Payroll</Button>
+                                    </Link>
+                                    <Button
+                                        size="small"
+                                        onClick={() => {
+                                            window.open(
+                                                route('admin.payroll.payslip.view', {
+                                                    payrollRecord: row.id,
+                                                    print: 1,
+                                                }),
+                                                '_blank',
+                                                'noopener,noreferrer'
+                                            );
+                                        }}
+                                    >
+                                        Print Payroll
+                                    </Button>
+                                    {row.status === 'finalized' && row.payslip_available && (
+                                        <a href={route('admin.payroll.payslip.download', row.id)}>
+                                            <Button size="small">Download</Button>
+                                        </a>
                                     )}
                                     {row.status !== 'finalized' && (
                                         <Button
@@ -439,33 +459,6 @@ export default function AdminPayrollIndex() {
                                         >
                                             Delete
                                         </Button>
-                                    )}
-                                    {row.status === 'finalized' && (
-                                        <>
-                                            <Link href={route('admin.payroll.payslip.view', row.id)}>
-                                                <Button size="small">View Payslip</Button>
-                                            </Link>
-                                            <Button
-                                                size="small"
-                                                onClick={() => {
-                                                    window.open(
-                                                        route('admin.payroll.payslip.view', {
-                                                            payrollRecord: row.id,
-                                                            print: 1,
-                                                        }),
-                                                        '_blank',
-                                                        'noopener,noreferrer'
-                                                    );
-                                                }}
-                                            >
-                                                Print Payslip
-                                            </Button>
-                                            {row.payslip_available && (
-                                                <a href={route('admin.payroll.payslip.download', row.id)}>
-                                                    <Button size="small">Download</Button>
-                                                </a>
-                                            )}
-                                        </>
                                     )}
                                 </Space>
                             ),

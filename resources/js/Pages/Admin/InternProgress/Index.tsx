@@ -1,10 +1,11 @@
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { PageProps as AppPageProps } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Progress, Space, Table, Tag } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 type InternProgress = {
     id: number;
@@ -26,6 +27,19 @@ type Props = AppPageProps<{
 
 export default function AdminInternProgressIndex() {
     const { interns } = usePage<Props>().props;
+    const [userSearch, setUserSearch] = useState('');
+    const filteredInterns = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+        if (query === '') {
+            return interns;
+        }
+
+        return interns.filter((row) => (
+            row.name.toLowerCase().includes(query)
+            || row.email.toLowerCase().includes(query)
+            || (row.school || '').toLowerCase().includes(query)
+        ));
+    }, [interns, userSearch]);
     const completedCount = useMemo(
         () => interns.filter((item) => item.progress_status === 'completed').length,
         [interns],
@@ -59,10 +73,15 @@ export default function AdminInternProgressIndex() {
                 <MetricCard label="In Progress" value={inProgressCount} />
             </div>
 
-            <TableCard title="Intern Completion Tracker">
+            <TableCard
+                title="Intern Completion Tracker"
+                actions={(
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                )}
+            >
                 <Table
                     rowKey="id"
-                    dataSource={interns}
+                    dataSource={filteredInterns}
                     pagination={{ pageSize: 12 }}
                     columns={[
                         {

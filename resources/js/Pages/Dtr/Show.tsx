@@ -106,8 +106,9 @@ export default function DtrShow({
     const printableRows = initialRows.filter((row) => selectedPrintDays.includes(dayjs(row.date).date()));
     const printableTotalHours = printableRows.reduce((sum, row) => sum + row.total_hours, 0);
     const printableRemainingHours = Math.max(0, required_hours - printableTotalHours);
+    const cumulativeLoggedHours = Math.max(0, required_hours - Math.max(0, remaining_hours));
 
-    const progressPercentage = required_hours > 0 ? (total_hours / required_hours) * 100 : 0;
+    const progressPercentage = required_hours > 0 ? (cumulativeLoggedHours / required_hours) * 100 : 0;
 
     useEffect(() => {
         setSelectedPrintDays(daysWithRecords);
@@ -496,6 +497,9 @@ export default function DtrShow({
                 .dtr-row-finished td { background: #f6ffed !important; }
                 .dtr-row-missed td { background: #fff1f0 !important; }
                 .dtr-row-leave td { background: #fffbe6 !important; }
+                html.theme-dark .dtr-row-finished td { background: #173324 !important; }
+                html.theme-dark .dtr-row-missed td { background: #3b1d24 !important; }
+                html.theme-dark .dtr-row-leave td { background: #3b3320 !important; }
                 @media print {
                     @page { size: A4 portrait; margin: 8mm; }
                     .screen-only, .ant-layout-header { display: none !important; }
@@ -529,7 +533,7 @@ export default function DtrShow({
                 />
 
                 <div className={`mb-6 grid grid-cols-1 gap-3 ${isIntern ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
-                    <MetricCard label="Total Hours Logged" value={`${total_hours.toFixed(2)} hrs`} />
+                    <MetricCard label="Hours Logged (This Month)" value={`${total_hours.toFixed(2)} hrs`} />
                     {isIntern && <MetricCard label="Required Hours" value={`${required_hours} hrs`} />}
                     {isIntern && <MetricCard label="Remaining Hours" value={`${remaining_hours.toFixed(2)} hrs`} />}
                     {!isIntern && (

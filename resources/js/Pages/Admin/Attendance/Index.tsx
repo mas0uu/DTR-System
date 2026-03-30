@@ -2,6 +2,7 @@ import { PageProps as AppPageProps } from '@/types';
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Select, Space, Table, Tag } from 'antd';
 import { useMemo, useState } from 'react';
@@ -22,11 +23,30 @@ type Props = AppPageProps<{
 export default function AdminAttendanceIndex() {
     const { employees } = usePage<Props>().props;
     const [roleFilter, setRoleFilter] = useState<'all' | 'regular' | 'intern'>('all');
+    const [userSearch, setUserSearch] = useState('');
 
-    const filteredEmployees = useMemo(
-        () => (roleFilter === 'all' ? employees : employees.filter((employee) => employee.employee_type === roleFilter)),
-        [employees, roleFilter],
-    );
+    const filteredEmployees = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+
+        return employees.filter((employee) => {
+            const passesRole = roleFilter === 'all' || employee.employee_type === roleFilter;
+            if (!passesRole) {
+                return false;
+            }
+
+            if (query === '') {
+                return true;
+            }
+
+            return [
+                employee.name,
+                employee.email,
+                employee.department || '',
+                employee.company || '',
+                employee.employee_type || '',
+            ].some((value) => value.toLowerCase().includes(query));
+        });
+    }, [employees, roleFilter, userSearch]);
     const internCount = useMemo(
         () => employees.filter((employee) => employee.employee_type === 'intern').length,
         [employees],
@@ -64,16 +84,19 @@ export default function AdminAttendanceIndex() {
             <TableCard
                 title="Employee Attendance Access"
                 actions={(
-                    <Select
-                        value={roleFilter}
-                        style={{ width: 190 }}
-                        onChange={(value) => setRoleFilter(value)}
-                        options={[
-                            { label: 'All roles', value: 'all' },
-                            { label: 'Regular', value: 'regular' },
-                            { label: 'Intern', value: 'intern' },
-                        ]}
-                    />
+                    <Space wrap>
+                        <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                        <Select
+                            value={roleFilter}
+                            style={{ width: 190 }}
+                            onChange={(value) => setRoleFilter(value)}
+                            options={[
+                                { label: 'All roles', value: 'all' },
+                                { label: 'Regular', value: 'regular' },
+                                { label: 'Intern', value: 'intern' },
+                            ]}
+                        />
+                    </Space>
                 )}
             >
                 <Table

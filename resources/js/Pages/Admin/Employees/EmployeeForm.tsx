@@ -62,6 +62,7 @@ export default function EmployeeForm({
     const isAdmin = data.role === 'admin';
     const isEmployee = data.role === 'employee';
     const isIntern = data.role === 'intern';
+    const needsCompensationFields = isEmployee || (isIntern && data.intern_compensation_enabled);
     const hasSelectedRole = isAdmin || isEmployee || isIntern;
 
     return (
@@ -185,8 +186,15 @@ export default function EmployeeForm({
                                 />
                                 <InputError message={errors.department} className="mt-2" />
                             </Col>
+                        </Row>
+                    </>
+                )}
+
+                {needsCompensationFields && (
+                    <>
+                        <Row gutter={16} className={isEmployee ? 'mt-4' : ''}>
                             <Col xs={24} sm={12}>
-                                <InputLabel htmlFor="salary_type" value="Salary Type" />
+                                <InputLabel htmlFor="salary_type" value={isIntern ? 'Compensation Type' : 'Salary Type'} />
                                 <Select
                                     id="salary_type"
                                     className="mt-1 block w-full"
@@ -200,10 +208,8 @@ export default function EmployeeForm({
                                 />
                                 <InputError message={errors.salary_type} className="mt-2" />
                             </Col>
-                        </Row>
-                        <Row gutter={16} className="mt-4">
                             <Col xs={24} sm={12}>
-                                <InputLabel htmlFor="salary_amount" value="Salary Amount" />
+                                <InputLabel htmlFor="salary_amount" value={isIntern ? 'Compensation Amount' : 'Salary Amount'} />
                                 <TextInput
                                     id="salary_amount"
                                     type="number"
@@ -212,10 +218,17 @@ export default function EmployeeForm({
                                     value={String(data.salary_amount)}
                                     className="mt-1 block w-full"
                                     onChange={(e) => setData('salary_amount', e.target.value)}
-                                    required={isEmployee}
+                                    required={needsCompensationFields}
                                 />
                                 <InputError message={errors.salary_amount} className="mt-2" />
                             </Col>
+                        </Row>
+                    </>
+                )}
+
+                {isEmployee && (
+                    <>
+                        <Row gutter={16} className="mt-4">
                             <Col xs={24} sm={12}>
                                 <InputLabel htmlFor="initial_paid_leave_days" value="Initial Paid Leave Days" />
                                 <TextInput

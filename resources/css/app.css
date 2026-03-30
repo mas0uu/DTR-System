@@ -316,6 +316,42 @@ html.theme-dark .text-gray-400 {
     max-width: 100%;
 }
 
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.ant-btn-dangerous {
+    background: #dc2626 !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+}
+
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.ant-btn-dangerous:hover:not(:disabled) {
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+    color: #fff !important;
+}
+
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.ant-btn-dangerous:active:not(:disabled) {
+    background: #b91c1c !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+}
+
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.payroll-review-btn {
+    background: #16a34a !important;
+    border-color: #15803d !important;
+    color: #fff !important;
+}
+
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.payroll-review-btn:hover:not(:disabled) {
+    background: #22c55e !important;
+    border-color: #22c55e !important;
+    color: #fff !important;
+}
+
+.app-shell .admin-payroll-records-table .payroll-actions .ant-btn.payroll-review-btn:active:not(:disabled) {
+    background: #15803d !important;
+    border-color: #15803d !important;
+    color: #fff !important;
+}
+
 .admin-payroll-records-table .ant-tag {
     max-width: 100%;
     white-space: normal;
@@ -367,6 +403,33 @@ html.theme-dark .text-gray-400 {
 .app-shell .ant-input::placeholder,
 .app-shell .ant-select-selection-placeholder {
     color: var(--xp-muted) !important;
+}
+
+.app-shell .user-search-control.ant-space-compact {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.app-shell .user-search-control .ant-input {
+    min-height: 34px !important;
+    height: 34px !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.app-shell .user-search-control .ant-btn {
+    min-height: 34px !important;
+    height: 34px !important;
+    min-width: 40px !important;
+    padding: 0 10px !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.app-shell .user-search-control .ant-btn:hover:not(:disabled),
+.app-shell .user-search-control .ant-btn:active:not(:disabled) {
+    transform: none !important;
 }
 
 .theme-toggle-btn {

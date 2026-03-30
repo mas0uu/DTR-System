@@ -1,10 +1,11 @@
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { PageProps as AppPageProps } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import { Space, Table, Tag } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 type AuditLog = {
     id: number;
@@ -27,6 +28,18 @@ type Props = AppPageProps<{
 
 export default function AdminAuditIndex() {
     const { audit_logs } = usePage<Props>().props;
+    const [userSearch, setUserSearch] = useState('');
+    const filteredAuditLogs = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+        if (query === '') {
+            return audit_logs;
+        }
+
+        return audit_logs.filter((row) => (
+            (row.actor_name || '').toLowerCase().includes(query)
+            || (row.actor_email || '').toLowerCase().includes(query)
+        ));
+    }, [audit_logs, userSearch]);
     const attendanceChanges = useMemo(
         () => audit_logs.filter((item) => item.entity_type === 'dtr_row').length,
         [audit_logs],
@@ -55,10 +68,15 @@ export default function AdminAuditIndex() {
                 <MetricCard label="Leave Changes" value={leaveChanges} />
             </div>
 
-            <TableCard title="Change History">
+            <TableCard
+                title="Change History"
+                actions={(
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                )}
+            >
                 <Table
                     rowKey="id"
-                    dataSource={audit_logs}
+                    dataSource={filteredAuditLogs}
                     pagination={{ pageSize: 20 }}
                     columns={[
                         { title: 'When', dataIndex: 'created_at', width: 170 },

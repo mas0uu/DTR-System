@@ -405,13 +405,15 @@ class AdminEmployeeController extends Controller
             'salary_type' => [
                 'nullable',
                 'in:monthly,daily,hourly',
-                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE
+                    || ($request->input('role') === User::ROLE_INTERN && $request->boolean('intern_compensation_enabled'))),
             ],
             'salary_amount' => [
                 'nullable',
                 'numeric',
                 'min:0.01',
-                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE),
+                Rule::requiredIf(fn () => $request->input('role') === User::ROLE_EMPLOYEE
+                    || ($request->input('role') === User::ROLE_INTERN && $request->boolean('intern_compensation_enabled'))),
             ],
             'initial_paid_leave_days' => [
                 'nullable',
@@ -440,6 +442,10 @@ class AdminEmployeeController extends Controller
         $isAdmin = $role === User::ROLE_ADMIN;
         $isIntern = $role === User::ROLE_INTERN;
         $isEmployee = $role === User::ROLE_EMPLOYEE;
+        $internCompensationEnabled = $isIntern
+            ? (bool) ($validated['intern_compensation_enabled'] ?? $existing?->intern_compensation_enabled ?? false)
+            : false;
+        $shouldApplyCompensationFields = $isEmployee || ($isIntern && $internCompensationEnabled);
         $initialLeave = round((float) ($validated['initial_paid_leave_days'] ?? 0), 2);
         $currentLeave = round(
             (float) (
@@ -466,15 +472,15 @@ class AdminEmployeeController extends Controller
             'role' => $role,
             'employee_type' => $isAdmin ? null : ($isIntern ? 'intern' : 'regular'),
             'intern_compensation_enabled' => $isIntern
-                ? (bool) ($validated['intern_compensation_enabled'] ?? $existing?->intern_compensation_enabled ?? false)
+                ? $internCompensationEnabled
                 : ($isEmployee ? true : false),
             'starting_date' => $isAdmin ? null : $validated['starting_date'],
             'working_days' => $isAdmin ? null : $validated['working_days'],
             'work_time_in' => $isAdmin ? null : $validated['work_time_in'],
             'work_time_out' => $isAdmin ? null : $validated['work_time_out'],
             'default_break_minutes' => (int) ($validated['default_break_minutes'] ?? 60),
-            'salary_type' => $isEmployee ? ($validated['salary_type'] ?? null) : null,
-            'salary_amount' => $isEmployee ? ($validated['salary_amount'] ?? null) : null,
+            'salary_type' => $shouldApplyCompensationFields ? ($validated['salary_type'] ?? null) : null,
+            'salary_amount' => $shouldApplyCompensationFields ? ($validated['salary_amount'] ?? null) : null,
             'initial_paid_leave_days' => $isEmployee ? $initialLeave : 0,
             'current_paid_leave_balance' => $isEmployee ? $currentLeave : 0,
             'leave_reset_month' => (int) ($validated['leave_reset_month'] ?? 1),

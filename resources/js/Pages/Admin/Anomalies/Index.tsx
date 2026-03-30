@@ -1,10 +1,11 @@
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { PageProps as AppPageProps } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Space, Table, Tag } from 'antd';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 type Anomaly = {
     row_id: number;
@@ -26,10 +27,22 @@ type Props = AppPageProps<{
 
 export default function AdminAnomalyIndex() {
     const { anomalies } = usePage<Props>().props;
+    const [userSearch, setUserSearch] = useState('');
     const lateCount = useMemo(() => anomalies.filter((item) => item.type === 'late').length, [anomalies]);
     const undertimeCount = useMemo(() => anomalies.filter((item) => item.type === 'undertime').length, [anomalies]);
     const overtimeCount = useMemo(() => anomalies.filter((item) => item.type === 'overtime').length, [anomalies]);
     const missingLogCount = useMemo(() => anomalies.filter((item) => item.type === 'missing_logs').length, [anomalies]);
+    const filteredAnomalies = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+        if (query === '') {
+            return anomalies;
+        }
+
+        return anomalies.filter((row) =>
+            row.employee_name.toLowerCase().includes(query)
+            || row.employee_email.toLowerCase().includes(query)
+        );
+    }, [anomalies, userSearch]);
 
     const typeColor = (type: string) => {
         if (type === 'late') return 'orange';
@@ -59,10 +72,15 @@ export default function AdminAnomalyIndex() {
                 <MetricCard label="Overtime / Missing" value={`${overtimeCount} / ${missingLogCount}`} />
             </div>
 
-            <TableCard title="Anomaly Queue">
+            <TableCard
+                title="Anomaly Queue"
+                actions={(
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                )}
+            >
                 <Table
                     rowKey={(row) => `${row.row_id}-${row.type}`}
-                    dataSource={anomalies}
+                    dataSource={filteredAnomalies}
                     pagination={{ pageSize: 20 }}
                     columns={[
                         {

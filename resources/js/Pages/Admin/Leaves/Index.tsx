@@ -1,6 +1,7 @@
 import { PageProps as AppPageProps } from '@/types';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Alert, Button, Select, Space, Table, Tag } from 'antd';
 import { useMemo, useState } from 'react';
@@ -44,11 +45,20 @@ export default function AdminLeaveIndex() {
     const { leave_requests, flash } = page.props;
     const pageErrors = (page.props as unknown as { errors?: Record<string, string> }).errors;
     const [statusFilter, setStatusFilter] = useState<'all' | LeaveRequest['status']>('all');
+    const [userSearch, setUserSearch] = useState('');
 
-    const filtered = useMemo(
-        () => (statusFilter === 'all' ? leave_requests : leave_requests.filter((row) => row.status === statusFilter)),
-        [leave_requests, statusFilter],
-    );
+    const filtered = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+
+        return leave_requests.filter((row) => {
+            const passesStatus = statusFilter === 'all' || row.status === statusFilter;
+            const passesSearch = query === ''
+                || row.employee_name.toLowerCase().includes(query)
+                || row.employee_email.toLowerCase().includes(query);
+
+            return passesStatus && passesSearch;
+        });
+    }, [leave_requests, statusFilter, userSearch]);
 
     const statusColor = (status: LeaveRequest['status']) => {
         if (status === 'pending') return 'gold';
@@ -88,7 +98,12 @@ export default function AdminLeaveIndex() {
             {pageErrors?.leave_balance && <Alert type="error" message={pageErrors.leave_balance} showIcon className="mb-4" />}
             {pageErrors?.status && <Alert type="error" message={pageErrors.status} showIcon className="mb-4" />}
 
-            <TableCard title="Request Queue">
+            <TableCard
+                title="Request Queue"
+                actions={(
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
+                )}
+            >
                 <Table
                     rowKey="id"
                     dataSource={filtered}

@@ -3,6 +3,7 @@ import { attendanceStatusColor } from '@/lib/attendanceStatus';
 import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
+import UserSearchControl from '@/Components/ui/UserSearchControl';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Select, Space, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
@@ -37,6 +38,7 @@ export default function AdminAttendanceLogs() {
     const [roleFilter, setRoleFilter] = useState<'all' | 'regular' | 'intern'>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [monthFilter, setMonthFilter] = useState<string>('all');
+    const [userSearch, setUserSearch] = useState('');
 
     const formatTime = (value: string | null) => {
         if (!value) return '-';
@@ -73,14 +75,19 @@ export default function AdminAttendanceLogs() {
     }, [attendance_logs]);
 
     const filteredLogs = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+
         return attendance_logs.filter((row) => {
             const passesRole = roleFilter === 'all' || row.employee_type === roleFilter;
             const passesStatus = statusFilter === 'all' || row.attendance_statuses.includes(statusFilter);
             const passesMonth = monthFilter === 'all' || dayjs(row.date).format('YYYY-MM') === monthFilter;
+            const passesSearch = query === ''
+                || row.employee_name.toLowerCase().includes(query)
+                || row.employee_email.toLowerCase().includes(query);
 
-            return passesRole && passesStatus && passesMonth;
+            return passesRole && passesStatus && passesMonth && passesSearch;
         });
-    }, [attendance_logs, monthFilter, roleFilter, statusFilter]);
+    }, [attendance_logs, monthFilter, roleFilter, statusFilter, userSearch]);
     const internLogs = useMemo(
         () => filteredLogs.filter((row) => row.employee_type === 'intern').length,
         [filteredLogs],
@@ -114,6 +121,7 @@ export default function AdminAttendanceLogs() {
                 title="Attendance Log Rows"
                 actions={(
                     <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+                    <UserSearchControl value={userSearch} onChange={setUserSearch} />
                     <Select
                         value={roleFilter}
                         style={{ width: 190 }}
