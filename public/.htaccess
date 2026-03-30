@@ -23,3 +23,11 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+    # Cache hashed Vite assets aggressively; filenames change on every build.
+    <IfModule mod_setenvif.c>
+        SetEnvIf Request_URI "^/build/assets/" IS_VITE_ASSET
+    </IfModule>
+    Header set Cache-Control "public, max-age=31536000, immutable" env=IS_VITE_ASSET
+</IfModule>
