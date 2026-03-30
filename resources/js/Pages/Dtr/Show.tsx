@@ -41,6 +41,7 @@ interface DtrRow {
     break_target_minutes: number | null;
     break_started_at: string | null;
     status: RowStatus;
+    holiday?: string | null;
     leave_request_status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
     leave_request_type?: 'leave' | 'intern_absence' | null;
     leave_request_is_paid?: boolean | null;
@@ -160,6 +161,33 @@ export default function DtrShow({
         const minutes = Math.floor((safeSeconds % 3600) / 60);
         const seconds = safeSeconds % 60;
         return `${hours}h ${minutes}m ${seconds}s`;
+    };
+
+    const resolvePrintStatus = (row: DtrRow) => {
+        if (
+            row.status === 'leave'
+            || (row.leave_request_status === 'approved' && ['leave', 'intern_absence'].includes(String(row.leave_request_type || '')))
+        ) {
+            return 'Leave';
+        }
+
+        if (row.holiday && !row.time_in && !row.time_out) {
+            return 'Holiday';
+        }
+
+        if (!row.time_in || !row.time_out) {
+            return 'Incomplete';
+        }
+
+        if (row.attendance_statuses.includes('Overtime')) {
+            return 'Overtime';
+        }
+
+        if (row.attendance_statuses.includes('Half Day') || row.attendance_statuses.includes('Undertime')) {
+            return 'Half Day';
+        }
+
+        return 'Complete';
     };
 
     const extractApiError = (error: any, fallback: string) => {
@@ -696,7 +724,17 @@ export default function DtrShow({
 
             <div className="print-only" style={{ display: 'none' }}>
                 <div className="print-root">
-                    <h2 style={{ textAlign: 'center' }}>DAILY TIME RECORD - {month.monthName.toUpperCase()}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12 }}>
+                        <img
+                            src="/images/doxsys-logo-full.png"
+                            alt="Doxsys"
+                            style={{ height: 48, width: 'auto', objectFit: 'contain' }}
+                        />
+                        <div style={{ flex: 1, textAlign: 'right' }}>
+                            <h2 style={{ margin: 0 }}>DAILY TIME RECORD - {month.monthName.toUpperCase()}</h2>
+                            <div style={{ fontSize: 12 }}>Official attendance printout</div>
+                        </div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: 10 }}>
                         <div><strong>Name:</strong> {user.student_name || user.name || '-'}</div>
                         <div><strong>Employee Type:</strong> {user.employee_type === 'intern' ? 'Intern' : 'Regular Employee'}</div>
@@ -711,15 +749,13 @@ export default function DtrShow({
                     >
                         <colgroup>
                             <col style={{ width: '6%' }} />
-                            <col style={{ width: '14%' }} />
+                            <col style={{ width: '13%' }} />
                             <col style={{ width: '12%' }} />
-                            <col style={{ width: '10%' }} />
                             <col style={{ width: '12%' }} />
                             <col style={{ width: '12%' }} />
                             <col style={{ width: '9%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '11%' }} />
-                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '9%' }} />
+                            <col style={{ width: '17%' }} />
                         </colgroup>
                         <thead>
                             <tr>
@@ -730,9 +766,7 @@ export default function DtrShow({
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>OUT</th>
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Break</th>
                                 <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Total</th>
-                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Row State</th>
-                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Attendance Statuses</th>
-                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Warnings</th>
+                                <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -741,13 +775,11 @@ export default function DtrShow({
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{index + 1}</td>
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.day}</td>
                                     <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{dayjs(row.date).format('MM/DD')}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{formatDisplayTime(row.time_in)}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{formatDisplayTime(row.time_out)}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.break_minutes}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.total_hours.toFixed(2)}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{rowStateLabel(row.status)}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.attendance_statuses.join(', ') || '-'}</td>
-                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.warnings.join(', ') || '-'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDisplayTime(row.time_in)}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDisplayTime(row.time_out)}</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.break_minutes} mins</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{row.total_hours.toFixed(2)} hrs</td>
+                                    <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{resolvePrintStatus(row)}</td>
                                 </tr>
                             ))}
                         </tbody>

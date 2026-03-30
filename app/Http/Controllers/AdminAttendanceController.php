@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DtrMonth;
 use App\Models\DtrRow;
+use App\Models\Holiday;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\PayrollLockService;
@@ -116,6 +117,7 @@ class AdminAttendanceController extends Controller
             (int) ($employee->default_break_minutes ?? 60)
         );
         $finalizedPeriods = collect();
+        $holidays = collect();
         if ($selectedMonth) {
             $monthStart = Carbon::createFromDate($selectedMonth->year, $selectedMonth->month, 1, 'Asia/Manila')->startOfDay();
             $monthEnd = $monthStart->copy()->endOfMonth();
@@ -132,9 +134,17 @@ class AdminAttendanceController extends Controller
                     ];
                 })
                 ->values();
+            $holidays = Holiday::query()
+                ->where('is_active', true)
+                ->whereDate('date_start', '<=', $monthEnd->toDateString())
+                ->where(function ($query) use ($monthStart) {
+                    $query->whereNull('date_end')
+                        ->orWhereDate('date_end', '>=', $monthStart->toDateString());
+                })
+                ->get(['name', 'date_start', 'date_end', 'holiday_type']);
         }
         $rows = $selectedMonth
-            ? $selectedMonth->rows()->orderBy('date')->get()->map(function (DtrRow $row) use ($expectedDailyMinutes, $finalizedPeriods) {
+            ? $selectedMonth->rows()->with('leaveRequest')->orderBy('date')->get()->map(function (DtrRow $row) use ($expectedDailyMinutes, $finalizedPeriods, $holidays) {
                 $rowDate = $row->date->format('Y-m-d');
                 $isLockedByPayroll = $finalizedPeriods->contains(function (array $period) use ($rowDate) {
                     return $rowDate >= $period['start'] && $rowDate <= $period['end'];
@@ -151,6 +161,9 @@ class AdminAttendanceController extends Controller
                     'total_minutes' => (int) $row->total_minutes,
                     'total_hours' => round(((int) $row->total_minutes) / 60, 2),
                     'status' => $row->status,
+                    'holiday' => $this->holidayLabelForDate(Carbon::parse($rowDate, 'Asia/Manila')->startOfDay(), $holidays),
+                    'leave_request_status' => $row->leaveRequest?->status,
+                    'leave_request_type' => $row->leaveRequest?->request_type,
                     'is_locked_by_payroll' => $isLockedByPayroll,
                     'attendance_statuses' => $this->attendanceStatuses($row, $expectedDailyMinutes),
                     'flags' => $flags,
@@ -471,6 +484,36 @@ class AdminAttendanceController extends Controller
         $configured = (int) config('app.dtr_grace_minutes', self::DEFAULT_GRACE_MINUTES);
 
         return $configured >= 0 ? $configured : self::DEFAULT_GRACE_MINUTES;
+    }
+
+    private function holidayLabelForDate(Carbon $date, $holidays): ?string
+    {
+        $matched = null;
+        $bestPriority = -1;
+
+        foreach ($holidays as $holiday) {
+            $start = Carbon::parse($holiday->date_start)->startOfDay();
+            $end = $holiday->date_end
+                ? Carbon::parse($holiday->date_end)->startOfDay()
+                : $start->copy();
+
+            if (! $date->betweenIncluded($start, $end)) {
+                continue;
+            }
+
+            $priority = match ((string) $holiday->holiday_type) {
+                'regular' => 3,
+                'special' => 2,
+                default => 0,
+            };
+
+            if ($priority > $bestPriority) {
+                $matched = $holiday;
+                $bestPriority = $priority;
+            }
+        }
+
+        return $matched?->name;
     }
 
     private function attendanceLogsPayload(?string $sinceDate = null)

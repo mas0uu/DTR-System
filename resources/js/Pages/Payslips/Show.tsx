@@ -144,9 +144,16 @@ export default function PayslipShow() {
 
                 <div className="payslip-sheet mx-auto w-full max-w-4xl rounded-md border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                     <div className="mb-5 flex items-start justify-between gap-4">
-                        <div>
-                            <h1 className="m-0 text-2xl font-bold text-slate-900">{payslip.employee.company}</h1>
-                            <p className="m-0 text-sm text-slate-500">Official Payroll Payslip</p>
+                        <div className="flex items-start gap-4">
+                            <img
+                                src="/images/doxsys-logo-full.png"
+                                alt="Doxsys"
+                                className="h-12 w-auto object-contain print:h-10"
+                            />
+                            <div>
+                                <h1 className="m-0 text-2xl font-bold text-slate-900">{payslip.employee.company}</h1>
+                                <p className="m-0 text-sm text-slate-500">Official Payroll Payslip</p>
+                            </div>
                         </div>
                         <div className="text-right text-sm text-slate-600">
                             <div>Payslip No: #{payslip.id}</div>

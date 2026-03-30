@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DtrMonth;
+use App\Models\Holiday;
 use App\Models\PayrollRecord;
 use App\Models\DtrRow;
 use App\Models\User;
@@ -198,6 +199,14 @@ class DtrMonthController extends Controller
         );
         $monthStart = Carbon::createFromDate($month->year, $month->month, 1, $timezone)->startOfDay();
         $monthEnd = $monthStart->copy()->endOfMonth();
+        $holidays = Holiday::query()
+            ->where('is_active', true)
+            ->whereDate('date_start', '<=', $monthEnd->toDateString())
+            ->where(function ($query) use ($monthStart) {
+                $query->whereNull('date_end')
+                    ->orWhereDate('date_end', '>=', $monthStart->toDateString());
+            })
+            ->get(['name', 'date_start', 'date_end', 'holiday_type']);
         $finalizedPeriods = PayrollRecord::query()
             ->where('user_id', $user->id)
             ->where('status', 'finalized')
@@ -216,7 +225,7 @@ class DtrMonthController extends Controller
             ->with('leaveRequest')
             ->orderBy('date')
             ->get()
-            ->map(function ($row) use ($todayDate, $startingDate, $expectedDailyMinutes, $finalizedPeriods) {
+            ->map(function ($row) use ($todayDate, $startingDate, $expectedDailyMinutes, $finalizedPeriods, $holidays, $timezone) {
                 $rowDate = $row->date->format('Y-m-d');
                 $isLockedByPayroll = $finalizedPeriods->contains(function (array $period) use ($rowDate) {
                     return $rowDate >= $period['start'] && $rowDate <= $period['end'];
@@ -244,6 +253,7 @@ class DtrMonthController extends Controller
                     'break_target_minutes' => $row->break_target_minutes,
                     'break_started_at' => optional($row->break_started_at)?->toIso8601String(),
                     'status' => $row->status,
+                    'holiday' => $this->holidayLabelForDate(Carbon::parse($rowDate, $timezone)->startOfDay(), $holidays),
                     'leave_request_status' => $row->leaveRequest?->status,
                     'leave_request_type' => $row->leaveRequest?->request_type,
                     'leave_request_is_paid' => $row->leaveRequest?->is_paid,
@@ -534,6 +544,36 @@ class DtrMonthController extends Controller
         $configured = (int) config('app.dtr_grace_minutes', self::DEFAULT_GRACE_MINUTES);
 
         return $configured >= 0 ? $configured : self::DEFAULT_GRACE_MINUTES;
+    }
+
+    private function holidayLabelForDate(Carbon $date, $holidays): ?string
+    {
+        $matched = null;
+        $bestPriority = -1;
+
+        foreach ($holidays as $holiday) {
+            $start = Carbon::parse($holiday->date_start)->startOfDay();
+            $end = $holiday->date_end
+                ? Carbon::parse($holiday->date_end)->startOfDay()
+                : $start->copy();
+
+            if (! $date->betweenIncluded($start, $end)) {
+                continue;
+            }
+
+            $priority = match ((string) $holiday->holiday_type) {
+                'regular' => 3,
+                'special' => 2,
+                default => 0,
+            };
+
+            if ($priority > $bestPriority) {
+                $matched = $holiday;
+                $bestPriority = $priority;
+            }
+        }
+
+        return $matched?->name;
     }
 
     private function payrollAccessEnabled(User $user): bool

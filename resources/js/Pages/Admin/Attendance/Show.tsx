@@ -41,6 +41,9 @@ type Row = {
     total_minutes: number;
     total_hours: number;
     status: 'draft' | 'finished' | 'leave' | 'missed' | 'in_progress';
+    holiday?: string | null;
+    leave_request_status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
+    leave_request_type?: 'leave' | 'intern_absence' | null;
     is_locked_by_payroll: boolean;
     attendance_statuses: string[];
     flags: string[];
@@ -99,6 +102,33 @@ export default function AdminAttendanceShow() {
             break_minutes: row.break_minutes || 0,
             correction_reason: '',
         });
+    };
+
+    const resolvePrintStatus = (row: Row) => {
+        if (
+            row.status === 'leave'
+            || (row.leave_request_status === 'approved' && ['leave', 'intern_absence'].includes(String(row.leave_request_type || '')))
+        ) {
+            return 'Leave';
+        }
+
+        if (row.holiday && !row.time_in && !row.time_out) {
+            return 'Holiday';
+        }
+
+        if (!row.time_in || !row.time_out) {
+            return 'Incomplete';
+        }
+
+        if (row.attendance_statuses.includes('Overtime')) {
+            return 'Overtime';
+        }
+
+        if (row.attendance_statuses.includes('Half Day') || row.attendance_statuses.includes('Undertime')) {
+            return 'Half Day';
+        }
+
+        return 'Complete';
     };
 
     return (
@@ -224,16 +254,36 @@ export default function AdminAttendanceShow() {
             </div>
 
             <div className="print-only" style={{ display: 'none' }}>
-                <h2 style={{ textAlign: 'center' }}>
-                    ATTENDANCE REVIEW - {selected_month?.month_name?.toUpperCase() || 'NO MONTH'}
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12 }}>
+                    <img
+                        src="/images/doxsys-logo-full.png"
+                        alt="Doxsys"
+                        style={{ height: 46, width: 'auto', objectFit: 'contain' }}
+                    />
+                    <div style={{ flex: 1, textAlign: 'right' }}>
+                        <h2 style={{ margin: 0 }}>
+                            ATTENDANCE REVIEW - {selected_month?.month_name?.toUpperCase() || 'NO MONTH'}
+                        </h2>
+                        <div style={{ fontSize: 12 }}>Official attendance printout</div>
+                    </div>
+                </div>
                 <p><strong>Employee:</strong> {employee.name} ({employee.email})</p>
                 <p><strong>Department:</strong> {employee.department || '-'} | <strong>Company:</strong> {employee.company || '-'}</p>
                 <p><strong>Total Hours:</strong> {totalHours.toFixed(2)} | <strong>Flagged Rows:</strong> {flaggedRows}</p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
+                    <colgroup>
+                        <col style={{ width: '11%' }} />
+                        <col style={{ width: '10%' }} />
+                        <col style={{ width: '11%' }} />
+                        <col style={{ width: '11%' }} />
+                        <col style={{ width: '8%' }} />
+                        <col style={{ width: '8%' }} />
+                        <col style={{ width: '9%' }} />
+                        <col style={{ width: '22%' }} />
+                    </colgroup>
                     <thead>
                         <tr>
-                            {['Date', 'Day', 'In', 'Out', 'Late', 'Break', 'Hours', 'Row State', 'Attendance Statuses', 'Flags'].map((header) => (
+                            {['Date', 'Day', 'In', 'Out', 'Late', 'Break', 'Hours', 'Status'].map((header) => (
                                 <th key={header} style={{ border: '1px solid #000', padding: 4 }}>{header}</th>
                             ))}
                         </tr>
@@ -243,14 +293,12 @@ export default function AdminAttendanceShow() {
                             <tr key={row.id}>
                                 <td style={{ border: '1px solid #000', padding: 4 }}>{row.date}</td>
                                 <td style={{ border: '1px solid #000', padding: 4 }}>{row.day}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.time_in || '-'}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.time_out || '-'}</td>
+                                <td style={{ border: '1px solid #000', padding: 4, whiteSpace: 'nowrap' }}>{row.time_in || '-'}</td>
+                                <td style={{ border: '1px solid #000', padding: 4, whiteSpace: 'nowrap' }}>{row.time_out || '-'}</td>
                                 <td style={{ border: '1px solid #000', padding: 4 }}>{row.late_minutes}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.break_minutes}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.total_hours.toFixed(2)}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{rowStateLabel(row.status)}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.attendance_statuses.join(', ') || 'None'}</td>
-                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.flags.join(', ') || 'None'}</td>
+                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.break_minutes} mins</td>
+                                <td style={{ border: '1px solid #000', padding: 4 }}>{row.total_hours.toFixed(2)} hrs</td>
+                                <td style={{ border: '1px solid #000', padding: 4 }}>{resolvePrintStatus(row)}</td>
                             </tr>
                         ))}
                     </tbody>
