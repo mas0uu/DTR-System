@@ -106,8 +106,9 @@ export default function DtrShow({
 
     const printableRows = initialRows.filter((row) => selectedPrintDays.includes(dayjs(row.date).date()));
     const printableTotalHours = printableRows.reduce((sum, row) => sum + row.total_hours, 0);
-    const printableRemainingHours = Math.max(0, required_hours - printableTotalHours);
     const cumulativeLoggedHours = Math.max(0, required_hours - Math.max(0, remaining_hours));
+    const loggedHoursBeforeCurrentMonth = Math.max(0, cumulativeLoggedHours - Math.max(0, total_hours));
+    const printableRemainingHours = Math.max(0, required_hours - (loggedHoursBeforeCurrentMonth + printableTotalHours));
 
     const progressPercentage = required_hours > 0 ? (cumulativeLoggedHours / required_hours) * 100 : 0;
 

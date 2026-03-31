@@ -277,7 +277,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     <div className="px-4 py-5">
                         <Link
                             href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
-                            className="block border border-[var(--xp-line)] bg-[var(--xp-panel)] p-3 shadow-sm transition hover:border-[#4BB9D2]"
+                            className="block p-0"
                         >
                             <img
                                 src="/images/doxsys-logo-full.png"
@@ -398,7 +398,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     <Link
                         href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
                         onClick={() => setMobileNavOpen(false)}
-                        className="block border border-[var(--xp-line)] bg-[var(--xp-panel)] p-3"
+                        className="block p-0"
                     >
                         <img
                             src="/images/doxsys-logo-full.png"
