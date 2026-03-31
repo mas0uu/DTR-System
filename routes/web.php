@@ -16,6 +16,8 @@ use App\Http\Controllers\AdminLeaveController;
 use App\Http\Controllers\EmployeeHolidayController;
 use App\Http\Controllers\EmployeeLeaveController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -98,6 +100,31 @@ Route::middleware(['auth', 'force_password_change', 'admin'])->prefix('admin')->
     Route::patch('security/password-resets/{passwordResetRequest}/reject', [AdminPasswordResetRequestController::class, 'reject'])->name('password_reset_requests.reject');
     Route::get('intern-progress', [AdminInternProgressController::class, 'index'])->name('intern_progress.index');
     Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
+});
+
+Route::get('/redis-test', function () {
+    try {
+        $ping = Redis::connection()->ping();
+
+        Cache::put('redis_test_key', 'hello redis', 300);
+        $value = Cache::get('redis_test_key');
+
+        return response()->json([
+            'success' => true,
+            'ping_raw' => $ping,
+            'ping_type' => gettype($ping),
+            'cache_default' => config('cache.default'),
+            'redis_client' => config('database.redis.client'),
+            'cache_value' => $value,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'cache_default' => config('cache.default'),
+            'redis_client' => config('database.redis.client'),
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 });
 
 require __DIR__.'/auth.php';

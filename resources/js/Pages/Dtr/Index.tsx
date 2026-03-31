@@ -2,7 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { attendanceStatusColor, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
 import TableCard from '@/Components/ui/TableCard';
 import { List, Button, Statistic, Row, Col, Empty, Progress, Tag, Typography, Select, Space, message } from 'antd';
-import { ArrowRightOutlined, EditOutlined, PrinterOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, EditOutlined, PrinterOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -587,7 +587,14 @@ export default function DtrIndex({
         {
             key: '4',
             children: (
-                <TableCard title={`Payroll (${payroll_records.length})`}>
+                <TableCard
+                    title={`Payroll (${payroll_records.length})`}
+                    actions={(
+                        <Link href={route('dtr.index', { tab: '1' })}>
+                            <Button icon={<ArrowLeftOutlined />}>Back to DTR</Button>
+                        </Link>
+                    )}
+                >
                     <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <Space wrap>
                             <Select

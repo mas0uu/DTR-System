@@ -274,15 +274,15 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                     className="hidden lg:block"
                     style={{ borderRight: '1px solid var(--xp-line)', background: 'var(--xp-panel-soft)' }}
                 >
-                    <div className="px-4 py-5">
+                    <div className="flex justify-center px-4 py-5">
                         <Link
                             href={isAdmin ? route('admin.employees.index') : route('dtr.index')}
-                            className="block p-0"
+                            className="inline-flex p-0"
                         >
                             <img
                                 src="/images/doxsys-logo-full.png"
                                 alt="Doxsys"
-                                className="h-8 w-auto object-contain"
+                                className="app-full-logo h-8 w-auto object-contain"
                             />
                         </Link>
                     </div>
@@ -403,7 +403,7 @@ export default function ModernLayout({ children }: ModernLayoutProps) {
                         <img
                             src="/images/doxsys-logo-full.png"
                             alt="Doxsys"
-                            className="h-8 w-auto object-contain"
+                            className="app-full-logo h-8 w-auto object-contain"
                         />
                     </Link>
                 </div>
