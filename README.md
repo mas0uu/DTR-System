@@ -64,6 +64,19 @@ Note: feature tests use SQLite in-memory by default (`pdo_sqlite` extension requ
 npm run build
 ```
 
+## Optional Local Redis Cache
+
+For local development on Windows, this project can use Redis for the Laravel cache without changing sessions or queues.
+
+```bash
+CACHE_STORE=redis
+REDIS_CLIENT=predis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+```
+
+The app currently keeps `SESSION_DRIVER=database` and `QUEUE_CONNECTION=database` so enabling Redis cache remains a low-risk local change.
+
 ## Core Paths
 
 - Routes: `routes/web.php`
