@@ -1,5 +1,5 @@
 ﻿import { Head, Link, router } from '@inertiajs/react';
-import { attendanceStatusColor, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
+import { attendanceStatusColor, resolveDisplayRowState, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
 import PageHeader from '@/Components/ui/PageHeader';
 import MetricCard from '@/Components/ui/MetricCard';
 import TableCard from '@/Components/ui/TableCard';
@@ -164,6 +164,8 @@ export default function DtrShow({
         return `${hours}h ${minutes}m ${seconds}s`;
     };
 
+    const getDisplayRowState = (row: DtrRow) => resolveDisplayRowState(row);
+
     const resolvePrintStatus = (row: DtrRow) => {
         if (
             row.status === 'leave'
@@ -297,6 +299,11 @@ export default function DtrShow({
     };
 
     const handleEditRow = (row: DtrRow) => {
+        if (getDisplayRowState(row) === 'holiday') {
+            message.warning('Holiday rows without attendance do not need correction.');
+            return;
+        }
+
         if (row.is_locked_by_payroll) {
             message.warning('This row is locked by a finalized payroll period. Please ask admin for correction.');
             return;
@@ -370,9 +377,14 @@ export default function DtrShow({
     }, [printRange, daysWithRecords, month.year, month.month]);
 
     const rowClassName = (row: DtrRow) => {
-        if (row.status === 'finished') return 'dtr-row-finished';
-        if (row.status === 'missed') return 'dtr-row-missed';
-        if (row.status === 'leave') return 'dtr-row-leave';
+        const displayState = getDisplayRowState(row);
+        const isIncompleteNonHoliday = displayState !== 'holiday' && row.warnings.includes('Incomplete Row');
+
+        if (displayState === 'holiday') return 'dtr-row-holiday';
+        if (isIncompleteNonHoliday) return 'dtr-row-missed';
+        if (displayState === 'finished') return 'dtr-row-finished';
+        if (displayState === 'missed') return 'dtr-row-missed';
+        if (displayState === 'leave') return 'dtr-row-leave';
         return '';
     };
 
@@ -436,12 +448,16 @@ export default function DtrShow({
             dataIndex: 'status',
             key: 'status',
             width: 120,
-            render: (status: RowStatus, row: DtrRow) => (
-                <Space size={4} wrap>
-                    <Tag color={rowStateColor(status)}>{rowStateLabel(status)}</Tag>
-                    {row.is_locked_by_payroll && <Tag color="red">LOCKED</Tag>}
-                </Space>
-            ),
+            render: (_status: RowStatus, row: DtrRow) => {
+                const displayState = getDisplayRowState(row);
+
+                return (
+                    <Space size={4} wrap>
+                        <Tag color={rowStateColor(displayState)}>{rowStateLabel(displayState)}</Tag>
+                        {row.is_locked_by_payroll && <Tag color="red">LOCKED</Tag>}
+                    </Space>
+                );
+            },
         },
         {
             title: 'Attendance Statuses',
@@ -484,10 +500,12 @@ export default function DtrShow({
             key: 'actions',
             width: 170,
             render: (_: any, row: DtrRow) => {
+                const isBlankHolidayRow = getDisplayRowState(row) === 'holiday';
                 const canMarkLeave = row.can_edit
                     && !row.is_locked_by_payroll
                     && !row.time_in
                     && !row.time_out
+                    && !isBlankHolidayRow
                     && row.date < today_date
                     && !['pending', 'approved'].includes(String(row.leave_request_status || ''));
                 const requestLabel = isIntern ? 'Absence Request' : 'Leave';
@@ -499,6 +517,7 @@ export default function DtrShow({
                             size="small"
                             icon={<EditOutlined />}
                             onClick={() => handleEditRow(row)}
+                            disabled={isBlankHolidayRow}
                         />
                         <Button
                             size="small"
@@ -524,9 +543,11 @@ export default function DtrShow({
             <Head title={`DTR - ${month.monthName}`} />
             <style>{`
                 .dtr-row-finished td { background: #f6ffed !important; }
+                .dtr-row-holiday td { background: #fffbe6 !important; }
                 .dtr-row-missed td { background: #fff1f0 !important; }
                 .dtr-row-leave td { background: #fffbe6 !important; }
                 html.theme-dark .dtr-row-finished td { background: #173324 !important; }
+                html.theme-dark .dtr-row-holiday td { background: #3b3320 !important; }
                 html.theme-dark .dtr-row-missed td { background: #3b1d24 !important; }
                 html.theme-dark .dtr-row-leave td { background: #3b3320 !important; }
                 @media print {
@@ -628,7 +649,12 @@ export default function DtrShow({
                             </Space>
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Tag color={rowStateColor(todayRow.status)}>Row State: {rowStateLabel(todayRow.status)}</Tag>
+                            <Tag color={rowStateColor(getDisplayRowState(todayRow))}>
+                                Row State: {rowStateLabel(getDisplayRowState(todayRow))}
+                            </Tag>
+                            {todayRow.holiday && !todayRow.time_in && !todayRow.time_out && (
+                                <Tag color="gold">{todayRow.holiday}</Tag>
+                            )}
                             {todayRow.leave_request_status === 'pending' && (
                                 <Tag color="gold">
                                     {todayRow.leave_request_type === 'intern_absence' ? 'Absence Request' : 'Leave Request'}: PENDING

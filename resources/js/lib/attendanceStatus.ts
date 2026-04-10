@@ -12,12 +12,24 @@ export const attendanceStatusColor = (status: string): string => {
     return 'default';
 };
 
+export const resolveDisplayRowState = (row: {
+    status: string;
+    holiday?: string | null;
+    time_in?: string | null;
+    time_out?: string | null;
+}): string => {
+    const isBlankHoliday = Boolean(row.holiday && !row.time_in && !row.time_out);
+
+    return isBlankHoliday ? 'holiday' : row.status;
+};
+
 export const rowStateColor = (status: string): string => {
     const normalized = String(status || '').trim().toLowerCase();
 
     if (normalized === 'draft') return 'default';
     if (normalized === 'in_progress') return 'blue';
     if (normalized === 'finished') return 'green';
+    if (normalized === 'holiday') return 'gold';
     if (normalized === 'leave') return 'gold';
     if (normalized === 'missed') return 'red';
     return 'default';

@@ -18,6 +18,7 @@ use App\Http\Controllers\EmployeeLeaveController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -125,6 +126,31 @@ Route::get('/redis-test', function () {
             'error' => $e->getMessage(),
         ], 500);
     }
+});
+
+Route::get('/redis-speed-test', function () {
+
+    // 🔴 DB (slow)
+    $startDb = microtime(true);
+
+    $dbData = DB::table('dtr_rows')->get();
+
+    $dbTime = (microtime(true) - $startDb) * 1000;
+
+
+    // 🟢 CACHE (fast)
+    $startCache = microtime(true);
+
+    $cacheData = Cache::remember('dtr_test', 300, function () {
+        return DB::table('dtr_rows')->get();
+    });
+
+    $cacheTime = (microtime(true) - $startCache) * 1000;
+
+    return [
+        'db_time_ms' => round($dbTime, 2),
+        'cache_time_ms' => round($cacheTime, 2),
+    ];
 });
 
 require __DIR__.'/auth.php';

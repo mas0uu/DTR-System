@@ -71,6 +71,15 @@ class DtrMonthController extends Controller
 
         $todayDate = $now->toDateString();
         $payrollAccessEnabled = $this->payrollAccessEnabled($user);
+        $todayHolidays = Holiday::query()
+            ->where('is_active', true)
+            ->whereDate('date_start', '<=', $todayDate)
+            ->where(function ($query) use ($todayDate) {
+                $query->whereNull('date_end')
+                    ->orWhereDate('date_end', '>=', $todayDate);
+            })
+            ->get(['name', 'date_start', 'date_end', 'holiday_type']);
+        $todayHolidayLabel = $this->holidayLabelForDate($now->copy()->startOfDay(), $todayHolidays);
         $todayRow = DtrRow::query()
             ->whereHas('dtrMonth', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
@@ -167,11 +176,12 @@ class DtrMonthController extends Controller
                 'break_started_at' => optional($todayRow->break_started_at)?->toIso8601String(),
                 'late_minutes' => (int) $todayRow->late_minutes,
                 'status' => $todayRow->status,
+                'holiday' => $todayHolidayLabel,
                 'leave_request_status' => $todayRow->leaveRequest?->status,
                 'leave_request_type' => $todayRow->leaveRequest?->request_type,
                 'leave_request_is_paid' => $todayRow->leaveRequest?->is_paid,
                 'attendance_statuses' => $this->attendanceStatuses($todayRow, $expectedDailyMinutes),
-                'warnings' => $this->attendanceWarnings($todayRow, $expectedDailyMinutes, $todayDate),
+                'warnings' => $this->attendanceWarnings($todayRow, $expectedDailyMinutes, $todayDate, $todayHolidayLabel),
             ] : null,
             'shift_start' => $this->resolveShiftStart($user->work_time_in),
             'grace_minutes' => $this->resolveGraceMinutes(),
@@ -227,6 +237,8 @@ class DtrMonthController extends Controller
             ->get()
             ->map(function ($row) use ($todayDate, $startingDate, $expectedDailyMinutes, $finalizedPeriods, $holidays, $timezone) {
                 $rowDate = $row->date->format('Y-m-d');
+                $holidayLabel = $this->holidayLabelForDate(Carbon::parse($rowDate, $timezone)->startOfDay(), $holidays);
+                $isBlankHoliday = $holidayLabel !== null && ! $row->time_in && ! $row->time_out;
                 $isLockedByPayroll = $finalizedPeriods->contains(function (array $period) use ($rowDate) {
                     return $rowDate >= $period['start'] && $rowDate <= $period['end'];
                 });
@@ -235,6 +247,7 @@ class DtrMonthController extends Controller
                     && $row->status === 'missed'
                     && ! $row->time_in
                     && ! $row->time_out
+                    && ! $isBlankHoliday
                     && ! $isLockedByPayroll;
                 // Rejected requests should allow the employee to edit missed attendance.
                 $hasLockedLeaveRequest = in_array($row->leaveRequest?->status, ['pending', 'approved'], true);
@@ -253,13 +266,13 @@ class DtrMonthController extends Controller
                     'break_target_minutes' => $row->break_target_minutes,
                     'break_started_at' => optional($row->break_started_at)?->toIso8601String(),
                     'status' => $row->status,
-                    'holiday' => $this->holidayLabelForDate(Carbon::parse($rowDate, $timezone)->startOfDay(), $holidays),
+                    'holiday' => $holidayLabel,
                     'leave_request_status' => $row->leaveRequest?->status,
                     'leave_request_type' => $row->leaveRequest?->request_type,
                     'leave_request_is_paid' => $row->leaveRequest?->is_paid,
                     'is_locked_by_payroll' => $isLockedByPayroll,
                     'attendance_statuses' => $this->attendanceStatuses($row, $expectedDailyMinutes),
-                    'warnings' => $this->attendanceWarnings($row, $expectedDailyMinutes, $todayDate),
+                    'warnings' => $this->attendanceWarnings($row, $expectedDailyMinutes, $todayDate, $holidayLabel),
                     'can_edit' => $canEdit && ! $hasLockedLeaveRequest,
                 ];
             });
@@ -410,12 +423,13 @@ class DtrMonthController extends Controller
         return $statuses;
     }
 
-    private function attendanceWarnings(DtrRow $row, int $expectedDailyMinutes, string $todayDate): array
+    private function attendanceWarnings(DtrRow $row, int $expectedDailyMinutes, string $todayDate, ?string $holidayLabel = null): array
     {
         $warnings = [];
         $minutes = (int) $row->total_minutes;
         $lateMinutes = (int) $row->late_minutes;
         $rowDate = $row->date->format('Y-m-d');
+        $isBlankHoliday = $holidayLabel !== null && ! $row->time_in && ! $row->time_out;
 
         if ($lateMinutes > 0) {
             $warnings[] = 'Late by '.$lateMinutes.' minutes';
@@ -431,7 +445,7 @@ class DtrMonthController extends Controller
             && in_array($row->status, ['draft', 'missed', 'in_progress'], true)
             && ! $row->time_in
             && ! $row->time_out;
-        if ($isIncompletePair || $isIncompleteFinished || $isIncompleteBlankPast) {
+        if (! $isBlankHoliday && ($isIncompletePair || $isIncompleteFinished || $isIncompleteBlankPast)) {
             $warnings[] = 'Incomplete Row';
         }
 
@@ -513,7 +527,40 @@ class DtrMonthController extends Controller
             ->whereDate('date', '<', $today->toDateString())
             ->whereNull('time_in')
             ->whereNull('time_out')
+            ->whereIn('status', ['missed', 'in_progress'])
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('holidays')
+                    ->where('holidays.is_active', true)
+                    ->whereColumn('holidays.date_start', '<=', 'dtr_rows.date')
+                    ->where(function ($holidayQuery) {
+                        $holidayQuery->whereNull('holidays.date_end')
+                            ->orWhereColumn('holidays.date_end', '>=', 'dtr_rows.date');
+                    });
+            })
+            ->update([
+                'status' => 'draft',
+                'on_break' => false,
+                'break_started_at' => null,
+                'break_target_minutes' => null,
+                'updated_at' => now(),
+            ]);
+
+        (clone $rowsQuery)
+            ->whereDate('date', '<', $today->toDateString())
+            ->whereNull('time_in')
+            ->whereNull('time_out')
             ->whereIn('status', ['draft', 'in_progress'])
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('holidays')
+                    ->where('holidays.is_active', true)
+                    ->whereColumn('holidays.date_start', '<=', 'dtr_rows.date')
+                    ->where(function ($holidayQuery) {
+                        $holidayQuery->whereNull('holidays.date_end')
+                            ->orWhereColumn('holidays.date_end', '>=', 'dtr_rows.date');
+                    });
+            })
             ->whereNotExists(function ($query) use ($user) {
                 $query->select(DB::raw(1))
                     ->from('payroll_records')

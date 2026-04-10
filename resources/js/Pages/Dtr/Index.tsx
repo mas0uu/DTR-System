@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { attendanceStatusColor, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
+import { attendanceStatusColor, resolveDisplayRowState, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
 import TableCard from '@/Components/ui/TableCard';
 import { List, Button, Statistic, Row, Col, Empty, Progress, Tag, Typography, Select, Space, message } from 'antd';
 import { ArrowLeftOutlined, ArrowRightOutlined, EditOutlined, PrinterOutlined } from '@ant-design/icons';
@@ -75,6 +75,7 @@ interface TodayRow {
     break_started_at: string | null;
     late_minutes: number;
     status: 'draft' | 'missed' | 'in_progress' | 'finished' | 'leave';
+    holiday?: string | null;
     leave_request_status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | null;
     leave_request_type?: 'leave' | 'intern_absence' | null;
     leave_request_is_paid?: boolean | null;
@@ -391,9 +392,12 @@ export default function DtrIndex({
 
                 {todayRow && (
                     <div className="flex flex-wrap justify-center gap-2">
-                        <Tag color={rowStateColor(todayRow.status)}>
-                            Row State: {rowStateLabel(todayRow.status)}
+                        <Tag color={rowStateColor(resolveDisplayRowState(todayRow))}>
+                            Row State: {rowStateLabel(resolveDisplayRowState(todayRow))}
                         </Tag>
+                        {todayRow.holiday && !todayRow.time_in && !todayRow.time_out && (
+                            <Tag color="gold">{todayRow.holiday}</Tag>
+                        )}
                         {todayRow.leave_request_status === 'pending' && (
                             <Tag color="gold">
                                 {todayRow.leave_request_type === 'intern_absence' ? 'Absence Request' : 'Leave Request'}: PENDING

@@ -2,7 +2,7 @@ import MetricCard from '@/Components/ui/MetricCard';
 import PageHeader from '@/Components/ui/PageHeader';
 import TableCard from '@/Components/ui/TableCard';
 import { PageProps as AppPageProps } from '@/types';
-import { attendanceStatusColor, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
+import { attendanceStatusColor, resolveDisplayRowState, rowStateColor, rowStateLabel } from '@/lib/attendanceStatus';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Alert, Button, Input, Modal, Select, Space, Table, Tag, TimePicker } from 'antd';
 import dayjs from 'dayjs';
@@ -93,6 +93,8 @@ export default function AdminAttendanceShow() {
         [rows, statusFilter],
     );
 
+    const getDisplayRowState = (row: Row) => resolveDisplayRowState(row);
+
     const openEdit = (row: Row) => {
         setEditingRow(row);
         setData({
@@ -135,6 +137,10 @@ export default function AdminAttendanceShow() {
         <>
             <Head title={`Attendance Review - ${employee.name}`} />
             <style>{`
+                .admin-attendance-row-holiday td { background: #fffbe6 !important; }
+                .admin-attendance-row-incomplete td { background: #fff1f0 !important; }
+                html.theme-dark .admin-attendance-row-holiday td { background: #3b3320 !important; }
+                html.theme-dark .admin-attendance-row-incomplete td { background: #3b1d24 !important; }
                 @media print {
                     @page { size: A4 portrait; margin: 8mm; }
                     .screen-only, .liquid-header { display: none !important; }
@@ -193,7 +199,12 @@ export default function AdminAttendanceShow() {
                     <Table
                         rowKey="id"
                         dataSource={filteredRows}
-                        rowClassName={(row) => (row.flags.length > 0 ? 'bg-red-50' : '')}
+                        rowClassName={(row) => {
+                            if (getDisplayRowState(row) === 'holiday') return 'admin-attendance-row-holiday';
+                            if (row.flags.includes('Missing in/out')) return 'admin-attendance-row-incomplete';
+                            if (row.flags.length > 0) return 'bg-red-50';
+                            return '';
+                        }}
                         columns={[
                             { title: 'Date', dataIndex: 'date' },
                             { title: 'Day', dataIndex: 'day' },
@@ -207,7 +218,7 @@ export default function AdminAttendanceShow() {
                                 dataIndex: 'status',
                                 render: (v, row) => (
                                     <Space wrap>
-                                        <Tag color={rowStateColor(String(v))}>{rowStateLabel(String(v))}</Tag>
+                                        <Tag color={rowStateColor(getDisplayRowState(row))}>{rowStateLabel(getDisplayRowState(row))}</Tag>
                                         {row.is_locked_by_payroll && <Tag color="red">Payroll Locked</Tag>}
                                     </Space>
                                 ),

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DtrMonth;
 use App\Models\DtrRow;
+use App\Models\Holiday;
 use App\Models\PayrollRecord;
 use App\Models\User;
 use Carbon\Carbon;
@@ -132,5 +133,79 @@ class AttendanceLockingTest extends TestCase
             Carbon::setTestNow();
         }
     }
-}
 
+    public function test_holiday_rows_are_not_kept_as_missed_when_refreshing_dtr(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 4, 10, 12, 0, 0, 'Asia/Manila'));
+
+        try {
+            $user = User::factory()->create([
+                'employee_type' => 'regular',
+                'starting_date' => '2026-04-01',
+                'working_days' => [1, 2, 3, 4, 5],
+                'work_time_in' => '09:00',
+                'work_time_out' => '18:00',
+                'salary_type' => 'monthly',
+                'salary_amount' => 30000,
+            ]);
+
+            $month = DtrMonth::create([
+                'user_id' => $user->id,
+                'month' => 4,
+                'year' => 2026,
+                'is_fulfilled' => false,
+            ]);
+
+            $holidayRow = DtrRow::create([
+                'dtr_month_id' => $month->id,
+                'date' => '2026-04-02',
+                'day' => 'Thursday',
+                'time_in' => null,
+                'time_out' => null,
+                'total_minutes' => 0,
+                'break_minutes' => 0,
+                'late_minutes' => 0,
+                'on_break' => false,
+                'status' => 'missed',
+            ]);
+
+            $regularWorkdayRow = DtrRow::create([
+                'dtr_month_id' => $month->id,
+                'date' => '2026-04-01',
+                'day' => 'Wednesday',
+                'time_in' => null,
+                'time_out' => null,
+                'total_minutes' => 0,
+                'break_minutes' => 0,
+                'late_minutes' => 0,
+                'on_break' => false,
+                'status' => 'draft',
+            ]);
+
+            Holiday::create([
+                'name' => 'Maundy Thursday',
+                'date_start' => '2026-04-02',
+                'date_end' => null,
+                'holiday_type' => 'regular',
+                'is_paid' => true,
+                'has_attendance_bonus' => true,
+                'attendance_bonus_type' => 'percent',
+                'attendance_bonus_value' => 100,
+                'is_active' => true,
+                'created_by' => $user->id,
+            ]);
+
+            $response = $this->actingAs($user)->get(route('dtr.index'));
+
+            $response->assertOk();
+
+            $holidayRow->refresh();
+            $regularWorkdayRow->refresh();
+
+            $this->assertSame('draft', $holidayRow->status);
+            $this->assertSame('missed', $regularWorkdayRow->status);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+}
